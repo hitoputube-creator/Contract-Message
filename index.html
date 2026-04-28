@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>하이탑부동산 · 계약문자 생성기</title>
+  <meta name="theme-color" content="#d4af37" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="계약문자" />
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="apple-touch-icon" href="./icon-192.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            navy: {
+              950: '#060d21',
+              900: '#0b1227',
+              800: '#141b2f',
+              700: '#181f34',
+              600: '#22293e',
+              500: '#2d344a',
+              400: '#32384f',
+            },
+            gold: {
+              DEFAULT: '#d4af37',
+              light: '#f2ca50',
+              dim: '#e9c349',
+            },
+            surface: '#dbe1fe',
+            muted: '#d0c5af',
+          },
+          fontFamily: { manrope: ['Manrope', 'sans-serif'] },
+          borderRadius: { sm: '2px', DEFAULT: '4px', md: '4px', lg: '6px' },
+        },
+      },
+    };
+  </script>
+  <style>
+    * { font-family: 'Manrope', sans-serif; box-sizing: border-box; }
+    body { background: #0b1227; color: #dbe1fe; min-height: 100vh; }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0b1227; }
+    ::-webkit-scrollbar-thumb { background: #2d344a; border-radius: 3px; }
+
+    /* input / select base */
+    .field {
+      background: #060d21;
+      border: 1px solid #2d344a;
+      border-radius: 4px;
+      color: #dbe1fe;
+      padding: 10px 14px;
+      width: 100%;
+      font-size: 15px;
+      transition: border-color .2s;
+      outline: none;
+    }
+    .field:focus { border-color: #d4af37; }
+    .field::placeholder { color: #4d4635; }
+
+    select.field option { background: #181f34; }
+
+    /* label */
+    .label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: #d0c5af;
+      margin-bottom: 6px;
+    }
+
+    /* gold button */
+    .btn-gold {
+      background: #d4af37;
+      color: #241a00;
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing: .05em;
+      padding: 12px 28px;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+      transition: background .2s, transform .1s;
+    }
+    .btn-gold:hover { background: #f2ca50; transform: translateY(-1px); }
+    .btn-gold:active { transform: translateY(0); }
+
+    /* ghost button */
+    .btn-ghost {
+      background: transparent;
+      color: #d4af37;
+      font-weight: 600;
+      font-size: 14px;
+      letter-spacing: .05em;
+      padding: 11px 24px;
+      border-radius: 4px;
+      border: 1px solid #d4af37;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .btn-ghost:hover { background: rgba(212,175,55,.08); }
+
+    /* card */
+    .card {
+      background: #141b2f;
+      border: 1px solid #22293e;
+      border-radius: 4px;
+      padding: 24px;
+    }
+
+    /* toggle */
+    .toggle-track {
+      width: 44px; height: 24px;
+      border-radius: 12px;
+      background: #2d344a;
+      position: relative;
+      cursor: pointer;
+      transition: background .2s;
+      flex-shrink: 0;
+    }
+    .toggle-track.on { background: #d4af37; }
+    .toggle-thumb {
+      width: 18px; height: 18px;
+      border-radius: 9px;
+      background: #dbe1fe;
+      position: absolute;
+      top: 3px; left: 3px;
+      transition: left .2s;
+    }
+    .toggle-track.on .toggle-thumb { left: 23px; background: #241a00; }
+
+    /* step indicator */
+    .step-dot {
+      width: 32px; height: 32px;
+      border-radius: 4px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700;
+    }
+    .step-dot.active { background: #d4af37; color: #241a00; }
+    .step-dot.done { background: #22293e; color: #d4af37; border: 1px solid #d4af37; }
+    .step-dot.idle { background: #22293e; color: #4d4635; }
+
+    /* checkbox */
+    .chk { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
+    .chk input[type=checkbox] { display: none; }
+    .chk-box {
+      width: 18px; height: 18px; flex-shrink: 0;
+      border: 1px solid #4d4635;
+      border-radius: 2px;
+      background: #060d21;
+      display: flex; align-items: center; justify-content: center;
+      margin-top: 1px;
+      transition: border-color .2s, background .2s;
+    }
+    .chk input:checked + .chk-box { background: #d4af37; border-color: #d4af37; }
+    .chk-mark { width: 10px; height: 10px; fill: #241a00; display: none; }
+    .chk input:checked + .chk-box .chk-mark { display: block; }
+    .chk-label { font-size: 14px; color: #dbe1fe; line-height: 1.5; }
+
+    /* messenger bubble */
+    .bubble {
+      background: #22293e;
+      border: 1px solid #2d344a;
+      border-radius: 4px 18px 18px 18px;
+      padding: 16px 18px;
+      font-size: 14px;
+      line-height: 1.75;
+      white-space: pre-wrap;
+      color: #dbe1fe;
+      resize: vertical;
+      min-height: 400px;
+      width: 100%;
+      outline: none;
+    }
+    .bubble:focus { border-color: #d4af37; }
+
+    /* radio pill */
+    .radio-pill { display: flex; gap: 0; }
+    .radio-pill label {
+      flex: 1;
+      text-align: center;
+      padding: 9px 0;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid #2d344a;
+      background: #060d21;
+      color: #d0c5af;
+      transition: background .15s, color .15s, border-color .15s;
+    }
+    .radio-pill label:first-child { border-radius: 4px 0 0 4px; }
+    .radio-pill label:last-child { border-radius: 0 4px 4px 0; }
+    .radio-pill input[type=radio] { display: none; }
+    .radio-pill input:checked + label { background: #d4af37; color: #241a00; border-color: #d4af37; }
+
+    /* divider */
+    .divider { border: none; border-top: 1px solid #22293e; margin: 20px 0; }
+
+    /* copy toast */
+    #toast {
+      position: fixed; bottom: 32px; left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: #d4af37; color: #241a00;
+      font-weight: 700; font-size: 14px;
+      padding: 12px 28px; border-radius: 4px;
+      transition: transform .3s ease;
+      z-index: 999;
+      pointer-events: none;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* ── 모바일 최적화 ── */
+    @media (max-width: 600px) {
+      /* iOS 줌 방지: input 폰트 16px 이상 */
+      .field { font-size: 16px; padding: 13px 14px; }
+
+      /* 터치 타겟 최소 44px */
+      .btn-gold, .btn-ghost {
+        min-height: 48px;
+        padding: 14px 20px;
+        font-size: 15px;
+        width: 100%;
+        justify-content: center;
+      }
+
+      /* 버튼 행: 세로 스택 */
+      .btn-row {
+        flex-direction: column !important;
+        gap: 10px !important;
+      }
+      .btn-row .btn-ghost { order: 2; }
+      .btn-row .btn-gold  { order: 1; }
+
+      /* 카드 패딩 축소 */
+      .card { padding: 16px; }
+
+      /* radio pill 글씨 */
+      .radio-pill label { font-size: 14px; padding: 11px 0; }
+
+      /* 체크박스 터치 영역 */
+      .chk { padding: 6px 0; }
+      .chk-box { width: 22px; height: 22px; }
+
+      /* 말풍선 */
+      .bubble { font-size: 13px; min-height: 320px; }
+
+      /* 헤더 */
+      header { padding: 0; }
+
+      /* safe area (iPhone 노치/홈바) */
+      body { padding-bottom: env(safe-area-inset-bottom); }
+      #toast { bottom: calc(24px + env(safe-area-inset-bottom)); }
+      main { padding-left: 16px; padding-right: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header style="border-bottom:1px solid #22293e; background:#060d21; position:sticky; top:0; z-index:50;">
+  <div style="max-width:760px; margin:0 auto; padding:16px 24px; display:flex; align-items:center; justify-content:space-between;">
+    <div>
+      <div style="font-size:11px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#d4af37;margin-bottom:2px;">REALTY</div>
+      <div id="hd-name" onclick="goStep(1)" style="font-size:18px;font-weight:700;color:#dbe1fe;cursor:pointer;" title="처음으로">-</div>
+      <div id="hd-title" style="font-size:12px;color:#d0c5af;margin-top:1px;">계약문자 생성기</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div id="hd-phone" style="font-size:12px;color:#4d4635;"></div>
+      <button onclick="openSettings()"
+        title="부동산 정보 설정"
+        style="background:transparent;border:1px solid #2d344a;color:#d0c5af;font-size:12px;
+               padding:5px 10px;border-radius:4px;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap;">
+        ⚙ <span style="font-size:11px;font-weight:600;letter-spacing:.03em;">설정변경</span>
+      </button>
+      <button id="install-btn" onclick="installApp()"
+        style="display:none;background:rgba(212,175,55,.15);border:1px solid #d4af37;color:#d4af37;
+               font-size:11px;font-weight:700;padding:6px 12px;border-radius:4px;cursor:pointer;
+               letter-spacing:.05em;white-space:nowrap;">
+        📱 앱 설치
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- 설정 모달 -->
+<div id="settings-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;background:rgba(0,0,0,.8);z-index:9999;align-items:center;justify-content:center;padding:24px;">
+  <div style="background:#181f34;border:1px solid #d4af37;border-radius:6px;padding:28px;width:100%;max-width:420px;position:relative;">
+    <div style="font-size:16px;font-weight:700;color:#d4af37;margin-bottom:20px;">⚙ 부동산 정보 설정</div>
+    <div style="margin-bottom:14px;">
+      <label class="label">부동산 이름</label>
+      <input class="field" id="set-name" type="text" placeholder="예: 하이탑부동산" />
+    </div>
+    <div style="margin-bottom:24px;">
+      <label class="label">전화번호</label>
+      <input class="field" id="set-phone" type="tel" placeholder="예: 031-949-8969" />
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn-gold" style="flex:1;" onclick="saveAgencySettings()">저장</button>
+      <button class="btn-ghost" style="flex:1;" onclick="closeSettings()">취소</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<main style="max-width:760px; margin:0 auto; padding:32px 24px 120px;">
+
+  <!-- STEP INDICATOR -->
+  <div id="step-indicator" style="display:flex;align-items:center;gap:0;margin-bottom:32px;"></div>
+
+  <!-- STEPS -->
+  <div id="step-1" class="step-panel"></div>
+  <div id="step-2" class="step-panel" style="display:none"></div>
+  <div id="step-3" class="step-panel" style="display:none"></div>
+  <div id="step-4" class="step-panel" style="display:none"></div>
+
+</main>
+
+<!-- TOAST -->
+<div id="toast">✓ 문자가 복사되었습니다</div>
+
+<script>
+/* =========================================================
+   STATE
+========================================================= */
+const state = {
+  step: 1,
+  complex: '',
+  buildingName: '',   // 건물명 (일반 오피스텔/아파트)
+  buildingDong: '',   // 동
+  buildingHo: '',     // 호수
+  contractType: '전세',
+  deposit: '',
+  monthlyRent: '',
+  monthlyType: '후불',
+  vat: '별도',
+  moveInDate: '',
+  contractPeriod: '24',
+  customPeriod: '',
+  contractMoney: '',
+  todayDeposit: '',
+  oftUse: '주거용',
+  coAgent: false,
+  coAgentName: '',
+  clausePet: true,
+  clauseCondition: true,
+  clauseBreak: true,
+  landlordBank: '',
+  landlordAccount: '',
+  landlordName: '',
+};
+
+/* persist / load */
+function save() { localStorage.setItem('haitop_state', JSON.stringify(state)); }
+function load() {
+  const s = localStorage.getItem('haitop_state');
+  if (s) Object.assign(state, JSON.parse(s));
+}
+load();
+
+/* ── 부동산 정보 (별도 저장, 초기화해도 유지) ── */
+const agency = { name: '하이탑부동산', phone: '031-949-8969' };
+function loadAgency() {
+  const a = localStorage.getItem('haitop_agency');
+  if (a) Object.assign(agency, JSON.parse(a));
+}
+function saveAgency() { localStorage.setItem('haitop_agency', JSON.stringify(agency)); }
+loadAgency();
+
+/* =========================================================
+   UTILS
+========================================================= */
+const COMPLEX_LIST = [
+  { label: '힐스테이트더운정 (아파트)', value: 'hillstate_apt', type: 'apt', fixed: true },
+  { label: '힐스테이트더운정 (오피스텔)', value: 'hillstate_oft', type: 'oft', fixed: true },
+  { label: '오피스텔', value: 'oft', type: 'oft', fixed: false },
+  { label: '아파트', value: 'apt', type: 'apt', fixed: false },
+];
+
+function isFixedComplex() {
+  const c = COMPLEX_LIST.find(x => x.value === state.complex);
+  return c && c.fixed;
+}
+
+function isOft() {
+  const c = COMPLEX_LIST.find(x => x.value === state.complex);
+  return c && c.type === 'oft';
+}
+function isBusinessOft() {
+  return isOft() && state.oftUse === '업무용';
+}
+/* 부가세 표시 조건: 업무용 오피스텔 월세일 때만 */
+function showVat() {
+  return state.contractType === '월세' && isBusinessOft();
+}
+
+/* 숫자 → 한국어 금액 */
+function numToKorean(n) {
+  if (!n || isNaN(n)) return '';
+  const units = ['', '만', '억', '조'];
+  let num = Math.abs(parseInt(n));
+  if (num === 0) return '영';
+  const ones = ['', '일', '이', '삼', '사', '오', '육', '칠', '팔', '구'];
+  const tens = ['', '십', '이십', '삼십', '사십', '오십', '육십', '칠십', '팔십', '구십'];
+  const hundreds = ['', '백', '이백', '삼백', '사백', '오백', '육백', '칠백', '팔백', '구백'];
+  const thousands = ['', '천', '이천', '삼천', '사천', '오천', '육천', '칠천', '팔천', '구천'];
+
+  function block(b) {
+    const t = Math.floor(b / 1000) % 10;
+    const h = Math.floor(b / 100) % 10;
+    const ten = Math.floor(b / 10) % 10;
+    const o = b % 10;
+    return (t ? thousands[t] : '') + (h ? hundreds[h] : '') + (ten ? tens[ten] : '') + (o ? ones[o] : '');
+  }
+
+  let result = '';
+  const parts = [];
+  let tmp = num;
+  for (let i = 0; tmp > 0; i++) {
+    const b = tmp % 10000;
+    if (b > 0) parts.unshift({ val: b, unit: units[i] });
+    tmp = Math.floor(tmp / 10000);
+  }
+  result = parts.map(p => block(p.val) + p.unit).join('');
+
+  // 간단 표기: 만단위까지
+  return result;
+}
+
+function formatMoney(raw) {
+  if (!raw) return '';
+  const n = parseInt(raw.replace(/,/g, ''));
+  if (isNaN(n)) return '';
+  const kor = numToKorean(n);
+  const fmt = n.toLocaleString('ko-KR');
+  return `금 ${kor}원 정(${fmt}원)`;
+}
+
+function fmtNum(raw) {
+  if (!raw) return '';
+  const n = parseInt(raw.replace(/,/g, ''));
+  if (isNaN(n)) return '';
+  return n.toLocaleString('ko-KR');
+}
+
+function parseNum(s) {
+  if (!s) return 0;
+  return parseInt(String(s).replace(/,/g, '')) || 0;
+}
+
+/* 날짜 포맷 */
+function fmtDate(d) {
+  if (!d) return '';
+  const [y, m, day] = d.split('-');
+  return `${y}년 ${parseInt(m)}월 ${parseInt(day)}일`;
+}
+
+/* 잔금일 계산: 이사 예정일 */
+function calcBalance() {
+  const deposit = parseNum(state.deposit);
+  const today = parseNum(state.todayDeposit);
+  const total = parseNum(state.contractMoney);
+  const balance = total - today;
+  return { balance, total };
+}
+
+/* 계약 기간 */
+function getPeriod() {
+  if (state.contractPeriod === '직접') return state.customPeriod + '개월';
+  return state.contractPeriod + '개월';
+}
+
+/* 단지명 */
+function getComplexLabel() {
+  const c = COMPLEX_LIST.find(x => x.value === state.complex);
+  return c ? c.label : '';
+}
+
+/* =========================================================
+   TEXT GENERATION
+========================================================= */
+function generateText() {
+  const complexLabel = getComplexLabel();
+  const bldgName = !isFixedComplex() && state.buildingName ? ` ${state.buildingName}` : '';
+  const bldgDong = state.buildingDong ? ` ${state.buildingDong}동` : '';
+  const bldgHo   = state.buildingHo   ? ` ${state.buildingHo}호`   : '';
+  const bldg = `${bldgName}${bldgDong}${bldgHo}`;
+  const isBizOft = isBusinessOft();
+  const { balance } = calcBalance();
+  const deposit = parseNum(state.deposit);
+  const contractMoney = parseNum(state.contractMoney);
+  const todayDeposit = parseNum(state.todayDeposit);
+
+  const depositLine = formatMoney(String(deposit));
+  const monthlyRentLine = state.contractType === '월세' ? formatMoney(state.monthlyRent) : '';
+  const contractMoneyLine = formatMoney(String(contractMoney));
+  const todayLine = formatMoney(String(todayDeposit));
+  const balanceLine = formatMoney(String(balance));
+
+  const coName = state.coAgent && state.coAgentName ? state.coAgentName : '';
+  const agName = agency.name;
+  const agPhone = agency.phone;
+
+  let lines = [];
+
+  lines.push(`안녕하세요. ${agName}(${agPhone})입니다.`);
+  if (coName) {
+    lines.push(`${agName}과 ${coName}이 진행하는 공동중개계약입니다.`);
+  }
+  lines.push(`[${complexLabel}${bldg} ${state.contractType} 계약내용]`);
+  lines.push(``);
+  lines.push(`■ 계약 조건`);
+
+  if (state.contractType === '전세') {
+    lines.push(`· 보증금: ${depositLine}`);
+  } else {
+    lines.push(`· 보증금: ${depositLine}`);
+    const typeStr = state.monthlyType === '선불' ? ' / 선불' : ' / 후불';
+    if (isBizOft) {
+      const vatStr = state.vat === '별도' ? ' (부가세 별도)' : ' (부가세 포함)';
+      lines.push(`· 월세: ${monthlyRentLine}${vatStr}${typeStr}`);
+    } else {
+      lines.push(`· 월세: ${monthlyRentLine}${typeStr}`);
+    }
+  }
+
+  lines.push(`· 입주 예정일: ${fmtDate(state.moveInDate)}`);
+  lines.push(`· 계약 기간: ${getPeriod()}`);
+  lines.push(``);
+  lines.push(`■ 계약금`);
+  lines.push(`· 전체계약금: ${contractMoneyLine}`);
+  lines.push(`· 금일계약금: ${todayLine}`);
+  if (balance > 0) {
+    lines.push(`· 나머지 계약금: ${balanceLine} (계약서 작성시 입금하기로 한다.)`);
+  }
+  lines.push(``);
+  lines.push(`■ 임대인 계좌`);
+  lines.push(`· 은행: ${state.landlordBank || '____'}`);
+  lines.push(`· 계좌번호: ${state.landlordAccount || '____'}`);
+  lines.push(`· 예금주: ${state.landlordName || '____'}`);
+  lines.push(``);
+  lines.push(`■ 특약 사항`);
+
+  if (state.clausePet) lines.push(`· 애완동물 사육 및 실내 흡연은 금지합니다.`);
+  if (state.clauseCondition) lines.push(`· 본 계약은 현 시설 상태를 확인 후 계약하는 것으로 합니다.`);
+  if (isBizOft) {
+    lines.push(`· 업무용 오피스텔로 전입신고가 불가합니다.`);
+    lines.push(`· 세금계산서 발급이 가능합니다.`);
+  }
+  lines.push(``);
+  lines.push(`■ 해약금 규정`);
+  lines.push(`계약금 입금 후 정식 계약서 작성 전이라도 계약 해제 시 임대인은 배액배상, 임차인은 계약금을 포기하고 계약을 해지할 수 있으며, 임대인·임차인 어느 한쪽이 계약불이행하는 경우 위약금 기준은 실제 입금된 금액으로 하며, 임차인은 포기하고 임대인은 배액 상환함으로 해제할 수 있기로 상호 합의함(추가 청구 불가).`);
+  lines.push(`위 내용에 동의하시면 임차인은 임대인 계좌로 입금하시면 계약이 성립됩니다.`);
+  lines.push(``);
+  if (coName) {
+    lines.push(`감사합니다. 🏠 ${agName} · ${coName} 드림.`);
+  } else {
+    lines.push(`감사합니다. 🏠 ${agName} 드림.`);
+  }
+
+  return lines.join('\n');
+}
+
+/* =========================================================
+   RENDER HELPERS
+========================================================= */
+function Toggle({ id, checked, onChange, label }) {
+  return `
+    <div style="display:flex;align-items:center;gap:12px;cursor:pointer;" onclick="toggleClick('${id}')">
+      <div class="toggle-track ${checked ? 'on' : ''}" id="track-${id}">
+        <div class="toggle-thumb"></div>
+      </div>
+      <span style="font-size:14px;color:#dbe1fe;">${label}</span>
+    </div>
+  `;
+}
+
+function RadioPill(name, options, current) {
+  return `<div class="radio-pill">` + options.map(o =>
+    `<input type="radio" name="${name}" id="${name}_${o.value}" value="${o.value}" tabindex="-1" ${current === o.value ? 'checked' : ''} onchange="onRadio('${name}','${o.value}')">
+     <label for="${name}_${o.value}">${o.label}</label>`
+  ).join('') + `</div>`;
+}
+
+function Checkbox(id, checked, label) {
+  return `
+    <label class="chk">
+      <input type="checkbox" tabindex="-1" ${checked ? 'checked' : ''} id="${id}" onchange="toggleCheck('${id}')">
+      <div class="chk-box">
+        <svg class="chk-mark" viewBox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2.5" fill="none" stroke="#241a00" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </div>
+      <span class="chk-label">${label}</span>
+    </label>
+  `;
+}
+
+/* =========================================================
+   STEP RENDERS
+========================================================= */
+function renderIndicator() {
+  const steps = ['매물', '조건', '특약', '미리보기'];
+  const el = document.getElementById('step-indicator');
+  el.innerHTML = steps.map((s, i) => {
+    const n = i + 1;
+    const cls = n === state.step ? 'active' : n < state.step ? 'done' : 'idle';
+    const check = n < state.step ? '✓' : n;
+    return `
+      <div style="display:flex;align-items:center;">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+          <div class="step-dot ${cls}">${cls === 'done' ? '✓' : n}</div>
+          <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:${cls === 'active' ? '#d4af37' : cls === 'done' ? '#d4af37' : '#4d4635'};">${s}</div>
+        </div>
+        ${i < steps.length - 1 ? `<div style="flex:1;height:1px;background:${state.step > n ? '#d4af37' : '#22293e'};margin:0 8px;min-width:30px;margin-bottom:16px;"></div>` : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+/* --- STEP 1 --- */
+function renderStep1() {
+  document.getElementById('step-1').innerHTML = `
+    <div style="margin-bottom:24px;">
+      <div style="font-size:22px;font-weight:700;color:#dbe1fe;margin-bottom:6px;">매물 선택</div>
+      <div style="font-size:13px;color:#d0c5af;">계약할 단지 유형을 선택해 주세요.</div>
+    </div>
+    <div style="display:grid;gap:12px;">
+      ${COMPLEX_LIST.map(c => `
+        <div onclick="selectComplex('${c.value}')"
+          style="padding:20px 24px; border:1px solid ${state.complex === c.value ? '#d4af37' : '#22293e'};
+                 border-radius:4px; background:${state.complex === c.value ? 'rgba(212,175,55,.08)' : '#141b2f'};
+                 cursor:pointer; display:flex; align-items:center; justify-content:space-between;
+                 transition:border-color .2s, background .2s;">
+          <div>
+            <div style="font-size:16px;font-weight:600;color:${state.complex === c.value ? '#d4af37' : '#dbe1fe'};">${c.label}</div>
+            <div style="font-size:12px;color:#4d4635;margin-top:2px;">${c.type === 'oft' ? '업무용 오피스텔' : '주거용 아파트'}</div>
+          </div>
+          <div style="width:20px;height:20px;border-radius:50%;border:2px solid ${state.complex === c.value ? '#d4af37' : '#2d344a'};
+                      background:${state.complex === c.value ? '#d4af37' : 'transparent'};
+                      display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            ${state.complex === c.value ? '<div style="width:8px;height:8px;border-radius:50%;background:#241a00;"></div>' : ''}
+          </div>
+        </div>
+      `).join('')}
+    </div>
+    <div style="margin-top:32px;display:flex;justify-content:flex-end;" class="btn-row">
+      <button class="btn-gold" onclick="goStep(2)" ${!state.complex ? 'disabled style="opacity:.4;cursor:not-allowed;"' : ''}>
+        다음 단계 &rarr;
+      </button>
+    </div>
+  `;
+}
+
+/* --- STEP 2 --- */
+function renderStep2() {
+  const { balance } = calcBalance();
+  const showBalance = balance > 0;
+
+  document.getElementById('step-2').innerHTML = `
+    <div style="margin-bottom:24px;">
+      <div style="font-size:22px;font-weight:700;color:#dbe1fe;margin-bottom:6px;">계약 조건</div>
+      <div style="font-size:13px;color:#d0c5af;">임대차 계약 세부 조건을 입력해 주세요.</div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      ${!isFixedComplex() ? `
+        <div style="margin-bottom:16px;">
+          <label class="label">${isOft() ? '오피스텔명' : '아파트명'}</label>
+          <input class="field" type="text" tabindex="1"
+            placeholder="${isOft() ? '예: 운정아이파크' : '예: 운정 푸르지오'}"
+            value="${state.buildingName}" oninput="onInput('buildingName',this.value)" />
+        </div>
+      ` : ''}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+          <label class="label">동</label>
+          <input class="field" type="text" tabindex="2" placeholder="예: 101"
+            value="${state.buildingDong}" oninput="onInput('buildingDong',this.value)" />
+        </div>
+        <div>
+          <label class="label">호수</label>
+          <input class="field" type="text" tabindex="3" placeholder="예: 1501"
+            value="${state.buildingHo}" oninput="onInput('buildingHo',this.value)" />
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <div class="label">계약 유형</div>
+      ${RadioPill('contractType', [{label:'전세',value:'전세'},{label:'월세',value:'월세'}], state.contractType)}
+    </div>
+
+    ${isOft() ? `
+    <div class="card" style="margin-bottom:16px;border-color:rgba(212,175,55,.3);">
+      <div class="label" style="color:#d4af37;">오피스텔 사용 목적</div>
+      ${RadioPill('oftUse',[{label:'🏠 주거용 (전입 가능)',value:'주거용'},{label:'💼 업무용 (전입 불가)',value:'업무용'}], state.oftUse)}
+      <div style="margin-top:10px;font-size:12px;padding:10px 12px;border-radius:4px;background:#060d21;color:${state.oftUse === '업무용' ? '#f2ca50' : '#99907c'};">
+        ${state.oftUse === '업무용'
+          ? '⚠ 전입신고 불가 · 세금계산서 발급 문구가 특약에 자동 삽입됩니다.'
+          : '✓ 일반 주거용 계약입니다. 전입신고가 가능합니다.'}
+      </div>
+    </div>
+    ` : ''}
+
+    <div class="card" style="margin-bottom:16px;">
+      <div style="display:grid;gap:20px;">
+        <div>
+          <label class="label">보증금</label>
+          <input class="field" type="text" inputmode="numeric" tabindex="4" placeholder="예: 20,000,000"
+            value="${state.deposit}" oninput="onInput('deposit',this.value)"
+            onblur="autoComma('deposit',this)" />
+          <div style="font-size:12px;color:#d4af37;margin-top:5px;min-height:18px;">${formatMoney(state.deposit)}</div>
+        </div>
+
+        ${state.contractType === '월세' ? `
+        <div>
+          <label class="label">월세</label>
+          <input class="field" type="text" inputmode="numeric" tabindex="5" placeholder="예: 500,000"
+            value="${state.monthlyRent}" oninput="onInput('monthlyRent',this.value)"
+            onblur="autoComma('monthlyRent',this)" />
+          <div style="font-size:12px;color:#d4af37;margin-top:5px;min-height:18px;">${formatMoney(state.monthlyRent)}</div>
+        </div>
+        <div>
+          <label class="label">납부 방식</label>
+          ${RadioPill('monthlyType',[{label:'선불',value:'선불'},{label:'후불',value:'후불'}], state.monthlyType)}
+        </div>
+        ${showVat() ? `
+        <div>
+          <label class="label">부가세 <span style="color:#d4af37;font-size:10px;">(업무용 오피스텔)</span></label>
+          ${RadioPill('vat',[{label:'별도',value:'별도'},{label:'포함',value:'포함'}], state.vat)}
+        </div>
+        ` : ''}
+        ` : ''}
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <div style="display:grid;gap:20px;">
+        <div>
+          <label class="label">입주 예정일</label>
+          <input class="field" type="date" tabindex="6" value="${state.moveInDate}" onchange="onInput('moveInDate',this.value)" />
+        </div>
+        <div>
+          <label class="label">계약 기간</label>
+          ${RadioPill('contractPeriod',[{label:'12개월',value:'12'},{label:'24개월',value:'24'},{label:'직접입력',value:'직접'}], state.contractPeriod)}
+          ${state.contractPeriod === '직접' ? `
+            <input class="field" type="text" tabindex="7" style="margin-top:10px;" placeholder="예: 18"
+              value="${state.customPeriod}" oninput="onInput('customPeriod',this.value)" />
+          ` : ''}
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <div style="font-size:13px;font-weight:700;color:#d4af37;letter-spacing:.05em;text-transform:uppercase;margin-bottom:16px;">계약금</div>
+      <div style="display:grid;gap:20px;">
+        <div>
+          <label class="label">전체계약금</label>
+          <input class="field" type="text" inputmode="numeric" tabindex="8" placeholder="예: 2,000,000"
+            value="${state.contractMoney}" oninput="onInput('contractMoney',this.value)"
+            onblur="autoComma('contractMoney',this)" />
+          <div style="font-size:12px;color:#d4af37;margin-top:5px;min-height:18px;">${formatMoney(state.contractMoney)}</div>
+        </div>
+        <div>
+          <label class="label">금일계약금</label>
+          <input class="field" type="text" inputmode="numeric" tabindex="9" placeholder="예: 1,000,000"
+            value="${state.todayDeposit}" oninput="onInput('todayDeposit',this.value)"
+            onblur="autoComma('todayDeposit',this)" />
+          <div style="font-size:12px;color:#d4af37;margin-top:5px;min-height:18px;">${formatMoney(state.todayDeposit)}</div>
+        </div>
+        ${showBalance ? `
+        <div style="background:#060d21;border:1px solid #22293e;border-radius:4px;padding:12px 16px;">
+          <div class="label" style="margin-bottom:4px;">나머지 계약금 (자동계산)</div>
+          <div style="font-size:15px;color:#f2ca50;font-weight:600;">${formatMoney(String(balance))}</div>
+          <div style="font-size:11px;color:#99907c;margin-top:4px;">계약서 작성시 입금하기로 한다.</div>
+        </div>
+        ` : ''}
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;margin-top:32px;" class="btn-row">
+      <button class="btn-ghost" onclick="goStep(1)">&larr; 이전</button>
+      <button class="btn-gold" onclick="goStep(3)">다음 단계 &rarr;</button>
+    </div>
+  `;
+}
+
+/* --- STEP 3 --- */
+function renderStep3() {
+  document.getElementById('step-3').innerHTML = `
+    <div style="margin-bottom:24px;">
+      <div style="font-size:22px;font-weight:700;color:#dbe1fe;margin-bottom:6px;">특약 사항</div>
+      <div style="font-size:13px;color:#d0c5af;">계약에 포함할 특약을 선택해 주세요.</div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <div style="font-size:13px;font-weight:700;color:#d4af37;letter-spacing:.05em;text-transform:uppercase;margin-bottom:16px;">공동중개</div>
+      ${Toggle({ id: 'coAgent', checked: state.coAgent, label: '공동중개 계약' })}
+      ${state.coAgent ? `
+        <div style="margin-top:16px;">
+          <label class="label">상대 부동산 이름</label>
+          <input class="field" type="text" placeholder="예: 행복공인중개사사무소"
+            value="${state.coAgentName}" oninput="onInput('coAgentName',this.value)" />
+        </div>
+      ` : ''}
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <div style="font-size:13px;font-weight:700;color:#d4af37;letter-spacing:.05em;text-transform:uppercase;margin-bottom:16px;">특약 체크리스트</div>
+      <div style="display:grid;gap:14px;">
+        ${Checkbox('clausePet', state.clausePet, '애완동물 사육 및 실내 흡연 금지')}
+        ${Checkbox('clauseCondition', state.clauseCondition, '현 시설 상태 확인 후 계약 (임차인 동의)')}
+        ${isOft() ? `
+        <div style="background:rgba(212,175,55,.06);border:1px solid rgba(212,175,55,.2);border-radius:4px;padding:12px 14px;margin-top:4px;">
+          <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#d4af37;margin-bottom:6px;">오피스텔 자동 삽입 문구</div>
+          ${isBusinessOft()
+            ? `<div style="font-size:13px;color:#dbe1fe;line-height:1.6;">· 업무용 오피스텔로 전입신고가 불가합니다.<br>· 세금계산서 발급이 가능합니다.</div>`
+            : `<div style="font-size:13px;color:#99907c;line-height:1.6;">주거용 선택 시 별도 삽입 없음 (전입 가능)</div>`
+          }
+        </div>
+        ` : ''}
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <div style="font-size:13px;font-weight:700;color:#d4af37;letter-spacing:.05em;text-transform:uppercase;margin-bottom:16px;">임대인 계좌 정보</div>
+      <div style="display:grid;gap:16px;">
+        <div>
+          <label class="label">은행명</label>
+          <input class="field" type="text" placeholder="예: 국민은행"
+            value="${state.landlordBank}" oninput="onInput('landlordBank',this.value)" />
+        </div>
+        <div>
+          <label class="label">계좌번호</label>
+          <input class="field" type="text" placeholder="예: 123-456-789012"
+            value="${state.landlordAccount}" oninput="onInput('landlordAccount',this.value)" />
+        </div>
+        <div>
+          <label class="label">예금주</label>
+          <input class="field" type="text" placeholder="예: 홍길동"
+            value="${state.landlordName}" oninput="onInput('landlordName',this.value)" />
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;margin-top:32px;" class="btn-row">
+      <button class="btn-ghost" onclick="goStep(2)">&larr; 이전</button>
+      <button class="btn-gold" onclick="goStep(4)">문자 생성 ✦</button>
+    </div>
+  `;
+}
+
+/* --- STEP 4 --- */
+function renderStep4() {
+  const txt = generateText();
+  document.getElementById('step-4').innerHTML = `
+    <div style="margin-bottom:24px;">
+      <div style="font-size:22px;font-weight:700;color:#dbe1fe;margin-bottom:6px;">문자 미리보기</div>
+      <div style="font-size:13px;color:#d0c5af;">내용을 직접 수정한 후 복사할 수 있습니다.</div>
+    </div>
+
+    <!-- Messenger UI -->
+    <div style="background:#060d21;border:1px solid #22293e;border-radius:8px;padding:0;overflow:hidden;margin-bottom:16px;">
+      <!-- chat header -->
+      <div style="background:#141b2f;border-bottom:1px solid #22293e;padding:14px 20px;display:flex;align-items:center;gap:12px;">
+        <div style="width:36px;height:36px;border-radius:50%;background:#d4af37;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#241a00;flex-shrink:0;">${agency.name[0]}</div>
+        <div>
+          <div style="font-size:14px;font-weight:700;color:#dbe1fe;">${agency.name}</div>
+          <div style="font-size:11px;color:#4d4635;">${agency.phone}</div>
+        </div>
+        <div style="margin-left:auto;font-size:11px;color:#4d4635;">${new Date().toLocaleDateString('ko-KR')}</div>
+      </div>
+      <!-- bubble area -->
+      <div style="padding:20px;">
+        <div style="display:flex;gap:10px;align-items:flex-start;">
+          <div style="width:32px;height:32px;border-radius:50%;background:#d4af37;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#241a00;flex-shrink:0;margin-top:2px;">${agency.name[0]}</div>
+          <div style="flex:1;">
+            <textarea id="msg-edit" class="bubble">${txt}</textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 글자수 -->
+    <div id="charcount" style="text-align:right;font-size:12px;color:#4d4635;margin-bottom:16px;"></div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;" class="btn-row">
+      <button class="btn-ghost" onclick="goStep(3)">&larr; 수정하기</button>
+      <button class="btn-ghost" onclick="resetAll()" style="border-color:#4d4635;color:#4d4635;font-size:13px;">초기화</button>
+      <button class="btn-gold" onclick="copyText()">📋 문자 복사</button>
+    </div>
+  `;
+
+  // char count
+  const ta = document.getElementById('msg-edit');
+  function updateCount() {
+    const len = ta.value.length;
+    document.getElementById('charcount').textContent = `${len}자`;
+  }
+  ta.addEventListener('input', updateCount);
+  updateCount();
+}
+
+/* =========================================================
+   EVENT HANDLERS (global)
+========================================================= */
+window.selectComplex = function(v) {
+  state.complex = v;
+  save();
+  renderStep1();
+};
+
+window.toggleClick = function(id) {
+  state[id] = !state[id];
+  save();
+  if (state.step === 2) renderStep2();
+  if (state.step === 3) renderStep3();
+};
+
+window.toggleCheck = function(id) {
+  state[id] = !state[id];
+  save();
+  renderStep3();
+};
+
+window.onRadio = function(name, value) {
+  state[name] = value;
+  save();
+  if (state.step === 2) renderStep2();
+};
+
+window.onInput = function(key, value) {
+  state[key] = value;
+  save();
+  // live preview for balance
+  if (['contractMoney','todayDeposit','deposit','monthlyRent'].includes(key) && state.step === 2) {
+    // update preview labels without full re-render
+    const el = document.querySelector(`[oninput="onInput('${key}',this.value)"]`);
+    if (el) {
+      const preview = el.nextElementSibling;
+      if (preview && preview.style.color === 'rgb(212, 175, 55)') {
+        preview.textContent = formatMoney(value.replace(/,/g, ''));
+      }
+    }
+    // update balance
+    const { balance } = calcBalance();
+    const balEl = document.querySelector('.balance-preview');
+    if (balEl && balance > 0) balEl.textContent = formatMoney(String(balance));
+    else if (balance <= 0 && balEl) balEl.textContent = '';
+  }
+};
+
+window.autoComma = function(key, el) {
+  const n = parseNum(el.value);
+  if (!isNaN(n) && n > 0) {
+    el.value = n.toLocaleString('ko-KR');
+    state[key] = el.value;
+    save();
+    renderStep2();
+  }
+};
+
+window.goStep = function(n) {
+  document.querySelectorAll('.step-panel').forEach(p => p.style.display = 'none');
+  state.step = n;
+  save();
+  renderIndicator();
+  const panel = document.getElementById(`step-${n}`);
+  panel.style.display = 'block';
+  if (n === 1) renderStep1();
+  if (n === 2) renderStep2();
+  if (n === 3) renderStep3();
+  if (n === 4) renderStep4();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+window.copyText = function() {
+  const ta = document.getElementById('msg-edit');
+  const text = ta ? ta.value : generateText();
+  navigator.clipboard.writeText(text).then(() => {
+    const toast = document.getElementById('toast');
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2500);
+  });
+};
+
+/* 헤더 텍스트 갱신 */
+function renderHeader() {
+  const nm = document.getElementById('hd-name');
+  const ph = document.getElementById('hd-phone');
+  const tt = document.getElementById('hd-title');
+  if (nm) nm.textContent = agency.name;
+  if (ph) ph.textContent = agency.phone;
+  if (tt) tt.textContent = `${agency.name} 계약문자 생성기`;
+  document.title = `${agency.name} · 계약문자 생성기`;
+}
+
+/* 설정 모달 */
+window.openSettings = function() {
+  document.getElementById('set-name').value = agency.name;
+  document.getElementById('set-phone').value = agency.phone;
+  const m = document.getElementById('settings-modal');
+  m.style.display = 'flex';
+  m.style.alignItems = 'center';
+  m.style.justifyContent = 'center';
+};
+window.closeSettings = function() {
+  document.getElementById('settings-modal').style.display = 'none';
+};
+window.saveAgencySettings = function() {
+  const n = document.getElementById('set-name').value.trim();
+  const p = document.getElementById('set-phone').value.trim();
+  if (!n) { alert('부동산 이름을 입력해 주세요.'); return; }
+  agency.name = n;
+  agency.phone = p;
+  saveAgency();
+  renderHeader();
+  closeSettings();
+};
+
+window.resetAll = function() {
+  if (!confirm('모든 입력값을 초기화할까요?')) return;
+  Object.assign(state, {
+    step: 1,
+    complex: '',
+    buildingName: '',
+    buildingDong: '',
+    buildingHo: '',
+    oftUse: '주거용',
+    contractType: '전세',
+    deposit: '',
+    monthlyRent: '',
+    monthlyType: '후불',
+    vat: '별도',
+    moveInDate: '',
+    contractPeriod: '24',
+    customPeriod: '',
+    contractMoney: '',
+    todayDeposit: '',
+    coAgent: false,
+    coAgentName: '',
+    clausePet: true,
+    clauseCondition: true,
+    clauseBreak: true,
+    landlordBank: '',
+    landlordAccount: '',
+    landlordName: '',
+  });
+  save();
+  goStep(1);
+};
+
+/* =========================================================
+   INIT
+========================================================= */
+(function init() {
+  renderHeader();
+  /* 첫 방문 시 부동산 정보 설정 유도 */
+  if (!localStorage.getItem('haitop_agency')) {
+    setTimeout(() => openSettings(), 400);
+  }
+  renderIndicator();
+  // show correct step
+  document.querySelectorAll('.step-panel').forEach(p => p.style.display = 'none');
+  const panel = document.getElementById(`step-${state.step}`);
+  panel.style.display = 'block';
+  if (state.step === 1) renderStep1();
+  if (state.step === 2) renderStep2();
+  if (state.step === 3) renderStep3();
+  if (state.step === 4) renderStep4();
+})();
+</script>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    });
+  }
+
+  let _installPrompt = null;
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    _installPrompt = e;
+    const btn = document.getElementById('install-btn');
+    if (btn) btn.style.display = 'block';
+  });
+  window.addEventListener('appinstalled', () => {
+    const btn = document.getElementById('install-btn');
+    if (btn) btn.style.display = 'none';
+    _installPrompt = null;
+  });
+  window.installApp = async function() {
+    if (_installPrompt) {
+      _installPrompt.prompt();
+      const { outcome } = await _installPrompt.userChoice;
+      if (outcome === 'accepted') _installPrompt = null;
+    } else {
+      alert('Safari라면: 하단 공유버튼 → "홈 화면에 추가"를 눌러주세요.');
+    }
+  };
+</script>
+</body>
+</html>

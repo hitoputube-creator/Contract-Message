@@ -1,0 +1,14 @@
+{
+  "name": "하이탑부동산 계약문자 생성기",
+  "short_name": "계약문자",
+  "description": "하이탑부동산 가계약 문자 생성 앱",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0b1227",
+  "theme_color": "#d4af37",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
