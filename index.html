@@ -347,6 +347,8 @@ const state = {
   customPeriod: '',
   contractMoney: '',
   todayDeposit: '',
+  sendDate: new Date().toISOString().split('T')[0],
+  contractSignDate: '',
   oftUse: '주거용',
   coAgent: false,
   coAgentName: '',
@@ -463,6 +465,18 @@ function fmtDate(d) {
   return `${y}년 ${parseInt(m)}월 ${parseInt(day)}일`;
 }
 
+function fmtSendDate(d) {
+  if (!d) return '';
+  const [y, m, day] = d.split('-');
+  return `${y}.${m}.${day}`;
+}
+
+function fmtContractSignDate(d) {
+  if (!d) return '';
+  const [y, m, day] = d.split('-');
+  return `${y}.${parseInt(m)}.${parseInt(day)}일`;
+}
+
 /* 잔금일 계산: 이사 예정일 */
 function calcBalance() {
   const deposit = parseNum(state.deposit);
@@ -516,6 +530,7 @@ function generateText() {
     lines.push(`${agName}과 ${coName}이 진행하는 공동중개계약입니다.`);
   }
   lines.push(`[${complexLabel}${bldg} ${state.contractType} 계약내용]`);
+  lines.push(`[문자발신일 ${fmtSendDate(state.sendDate)}]`);
   lines.push(``);
   lines.push(`■ 계약 조건`);
 
@@ -541,6 +556,9 @@ function generateText() {
   if (balance > 0) {
     lines.push(`· 나머지 계약금: ${balanceLine} (계약서 작성시 입금하기로 한다.)`);
   }
+  if (state.contractSignDate) {
+    lines.push(`- 계약서 작성일: ${fmtContractSignDate(state.contractSignDate)} (시간은 추후연락하기로함)`);
+  }
   lines.push(``);
   lines.push(`■ 임대인 계좌`);
   lines.push(`· 은행: ${state.landlordBank || '____'}`);
@@ -558,7 +576,7 @@ function generateText() {
   lines.push(``);
   lines.push(`■ 해약금 규정`);
   lines.push(`계약금 입금 후 정식 계약서 작성 전이라도 계약 해제 시 임대인은 배액배상, 임차인은 계약금을 포기하고 계약을 해지할 수 있으며, 임대인·임차인 어느 한쪽이 계약불이행하는 경우 위약금 기준은 실제 입금된 금액으로 하며, 임차인은 포기하고 임대인은 배액 상환함으로 해제할 수 있기로 상호 합의함(추가 청구 불가).`);
-  lines.push(`위 내용에 동의하시면 임차인은 임대인 계좌로 입금하시면 계약이 성립됩니다.`);
+  lines.push(`위 내용에 동의하시면 임대인과 임차인분은 동의하신다는 문자부탁드립니다. 그리고 임차인은 임대인 계좌로 입금하시면 계약이 성립됩니다.`);
   lines.push(``);
   if (coName) {
     lines.push(`감사합니다. 🏠 ${agName} · ${coName} 드림.`);
@@ -667,6 +685,14 @@ function renderStep2() {
     <div style="margin-bottom:24px;">
       <div style="font-size:22px;font-weight:700;color:#dbe1fe;margin-bottom:6px;">계약 조건</div>
       <div style="font-size:13px;color:#d0c5af;">임대차 계약 세부 조건을 입력해 주세요.</div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <div>
+        <label class="label">문자 발신일</label>
+        <input class="field" type="date" tabindex="1" value="${state.sendDate}" onchange="onInput('sendDate',this.value)" />
+        <div style="font-size:12px;color:#d4af37;margin-top:5px;min-height:18px;">${state.sendDate ? '[문자발신일 ' + fmtSendDate(state.sendDate) + ']' : ''}</div>
+      </div>
     </div>
 
     <div class="card" style="margin-bottom:16px;">
@@ -782,6 +808,11 @@ function renderStep2() {
           <div style="font-size:11px;color:#99907c;margin-top:4px;">계약서 작성시 입금하기로 한다.</div>
         </div>
         ` : ''}
+        <div>
+          <label class="label">계약서 작성일 <span style="color:#4d4635;font-size:10px;">(선택)</span></label>
+          <input class="field" type="date" tabindex="10" value="${state.contractSignDate}" onchange="onInput('contractSignDate',this.value)" />
+          ${state.contractSignDate ? `<div style="font-size:12px;color:#d4af37;margin-top:5px;">- 계약서 작성일: ${fmtContractSignDate(state.contractSignDate)} (시간은 추후연락하기로함)</div>` : ''}
+        </div>
       </div>
     </div>
 
@@ -1044,6 +1075,8 @@ window.resetAll = function() {
     customPeriod: '',
     contractMoney: '',
     todayDeposit: '',
+    sendDate: new Date().toISOString().split('T')[0],
+    contractSignDate: '',
     coAgent: false,
     coAgentName: '',
     clausePet: true,
