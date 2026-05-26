@@ -503,7 +503,7 @@ function getComplexLabel() {
 ========================================================= */
 function generateText() {
   const complexLabel = getComplexLabel();
-  const bldgName = !isFixedComplex() && state.buildingName ? ` ${state.buildingName}` : '';
+  const bldgName = state.buildingName ? ` ${state.buildingName}` : '';
   const bldgDong = state.buildingDong ? ` ${state.buildingDong}동` : '';
   const bldgHo   = state.buildingHo   ? ` ${state.buildingHo}호`   : '';
   const bldg = `${bldgName}${bldgDong}${bldgHo}`;
@@ -696,14 +696,12 @@ function renderStep2() {
     </div>
 
     <div class="card" style="margin-bottom:16px;">
-      ${!isFixedComplex() ? `
-        <div style="margin-bottom:16px;">
-          <label class="label">${isOft() ? '오피스텔명' : '아파트명'}</label>
-          <input class="field" type="text" tabindex="1"
-            placeholder="${isOft() ? '예: 운정아이파크' : '예: 운정 푸르지오'}"
-            value="${state.buildingName}" oninput="onInput('buildingName',this.value)" />
-        </div>
-      ` : ''}
+      <div style="margin-bottom:16px;">
+        <label class="label">${isOft() ? '오피스텔명' : '아파트명'}</label>
+        <input class="field" type="text" tabindex="1"
+          placeholder="${isOft() ? '예: 푸르지오파크라인, 디에이블, 엠버418, 클래스원' : '예: 운정 푸르지오'}"
+          value="${state.buildingName}" oninput="onInput('buildingName',this.value)" />
+      </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
         <div>
           <label class="label">동</label>
