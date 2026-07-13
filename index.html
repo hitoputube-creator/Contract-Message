@@ -373,6 +373,7 @@ const state = {
   oftUse: '주거용',
   coAgent: false,
   coAgentName: '',
+  coAgentPhone: '',
   clausePet: true,
   clauseCondition: true,
   clauseBreak: true,
@@ -413,6 +414,8 @@ function save() { localStorage.setItem('haitop_state', JSON.stringify(state)); }
 function load() {
   const s = localStorage.getItem('haitop_state');
   if (s) Object.assign(state, JSON.parse(s));
+  // 구버전 호환: 공동중개 상호가 다른 키(coAgency)로 저장되어 있던 경우 이관
+  if (!state.coAgentName && state.coAgency) state.coAgentName = state.coAgency;
 }
 load();
 
@@ -587,6 +590,8 @@ function generateText() {
   const balanceLine = formatMoney(String(balance));
 
   const coName = state.coAgent && state.coAgentName ? state.coAgentName : '';
+  const coPhone = state.coAgent && state.coAgentPhone ? state.coAgentPhone : '';
+  const coDisplay = coName ? `${coName}${coPhone ? ` (${coPhone})` : ''}` : '';
   const agName = agency.name;
   const agPhone = agency.phone;
 
@@ -598,6 +603,9 @@ function generateText() {
   }
   lines.push(`[${propertyLine} ${state.contractType} 계약내용]`);
   lines.push(`[문자발신일 ${fmtSendDate(state.sendDate)}]`);
+  if (coDisplay) {
+    lines.push(`공동중개: ${coDisplay}`);
+  }
   lines.push(``);
   lines.push(`■ 계약 조건`);
 
@@ -1128,10 +1136,17 @@ function renderStep3() {
       <div style="font-size:13px;font-weight:700;color:#d4af37;letter-spacing:.05em;text-transform:uppercase;margin-bottom:16px;">공동중개</div>
       ${Toggle({ id: 'coAgent', checked: state.coAgent, label: '공동중개 계약' })}
       ${state.coAgent ? `
-        <div style="margin-top:16px;">
-          <label class="label">상대 부동산 이름</label>
-          <input class="field" type="text" placeholder="예: 행복공인중개사사무소"
-            value="${state.coAgentName}" oninput="onInput('coAgentName',this.value)" />
+        <div style="margin-top:16px;display:grid;gap:16px;">
+          <div>
+            <label class="label">상대 부동산 상호</label>
+            <input class="field" type="text" placeholder="예: 운정스타필드부동산"
+              value="${state.coAgentName}" oninput="onInput('coAgentName',this.value)" />
+          </div>
+          <div>
+            <label class="label">상대 부동산 전화번호</label>
+            <input class="field" type="tel" placeholder="예: 031-941-0594"
+              value="${state.coAgentPhone}" oninput="onInput('coAgentPhone',this.value)" />
+          </div>
         </div>
       ` : ''}
     </div>
@@ -1406,6 +1421,7 @@ window.resetAll = function() {
     contractSignDate: '',
     coAgent: false,
     coAgentName: '',
+    coAgentPhone: '',
     clausePet: true,
     clauseCondition: true,
     clauseBreak: true,
