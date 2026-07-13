@@ -205,6 +205,17 @@
     /* divider */
     .divider { border: none; border-top: 1px solid #22293e; margin: 20px 0; }
 
+    /* wizard 2-column layout (PC preview) */
+    #wizard-layout { display: block; }
+    @media (min-width: 900px) {
+      #wizard-layout.has-preview {
+        display: grid;
+        grid-template-columns: 1fr 360px;
+        gap: 24px;
+        align-items: start;
+      }
+    }
+
     /* copy toast */
     #toast {
       position: fixed; bottom: 32px; left: 50%;
@@ -311,16 +322,26 @@
 </div>
 
 <!-- MAIN -->
-<main style="max-width:760px; margin:0 auto; padding:32px 24px 120px;">
+<main id="main-el" style="max-width:760px; margin:0 auto; padding:32px 24px 120px;">
 
   <!-- STEP INDICATOR -->
   <div id="step-indicator" style="display:flex;align-items:center;gap:0;margin-bottom:32px;"></div>
 
-  <!-- STEPS -->
-  <div id="step-1" class="step-panel"></div>
-  <div id="step-2" class="step-panel" style="display:none"></div>
-  <div id="step-3" class="step-panel" style="display:none"></div>
-  <div id="step-4" class="step-panel" style="display:none"></div>
+  <div id="wizard-layout">
+    <div id="wizard-left">
+      <!-- STEPS -->
+      <div id="step-1" class="step-panel"></div>
+      <div id="step-2" class="step-panel" style="display:none"></div>
+      <div id="step-3" class="step-panel" style="display:none"></div>
+      <div id="step-4" class="step-panel" style="display:none"></div>
+    </div>
+    <aside id="preview-panel" style="display:none;">
+      <div class="card" style="position:sticky; top:88px;">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#d4af37;margin-bottom:14px;">📋 실시간 미리보기</div>
+        <div id="preview-content" style="font-size:13px;line-height:1.75;white-space:pre-wrap;color:#c7cee6;max-height:75vh;overflow-y:auto;"></div>
+      </div>
+    </aside>
+  </div>
 
 </main>
 
@@ -358,6 +379,33 @@ const state = {
   landlordBank: '',
   landlordAccount: '',
   landlordName: '',
+
+  /* ── 매물 직접 입력 (신규) ── */
+  propertyMode: 'select',        // 'select' | 'custom'
+  customPropertyType: '아파트',   // '아파트' | '오피스텔'
+  customAddress: '',
+
+  /* ── 계좌정보 추후 안내 (신규) ── */
+  accountLater: false,
+
+  /* ── 자유 특약 (신규) ── */
+  clauseFreeText: '',
+
+  /* ── 공통 추가 특약 (신규) ── */
+  clauseAsIs: false,
+  clausePetBan: false,
+  clauseSmokeBan: false,
+  clauseRestore: false,
+  clauseUtilSeparate: false,
+  clauseLoanCoop: false,
+  clauseNoRightsChange: false,
+
+  /* ── 오피스텔 추가 특약 (신규) ── */
+  clauseOftVatSeparate: false,
+  clauseOftResidentCheck: false,
+  clauseOftNoResident: false,
+  clauseOftBizReg: false,
+  clauseOftMgmtFeeCheck: false,
 };
 
 /* persist / load */
@@ -367,6 +415,9 @@ function load() {
   if (s) Object.assign(state, JSON.parse(s));
 }
 load();
+
+/* 입력 검증 통과 후에만 오류 표시 */
+let showErrors = false;
 
 /* ── 부동산 정보 (별도 저장, 초기화해도 유지) ── */
 const agency = { name: '하이탑부동산', phone: '031-949-8969' };
@@ -392,9 +443,16 @@ function isFixedComplex() {
   return c && c.fixed;
 }
 
-function isOft() {
+/* 직접입력/기존단지 선택 모드에 따른 물건 유형 판별 */
+function getPropertyType() {
+  if (state.propertyMode === 'custom') {
+    return state.customPropertyType === '오피스텔' ? 'oft' : 'apt';
+  }
   const c = COMPLEX_LIST.find(x => x.value === state.complex);
-  return c && c.type === 'oft';
+  return c ? c.type : '';
+}
+function isOft() {
+  return getPropertyType() === 'oft';
 }
 function isBusinessOft() {
   return isOft() && state.oftUse === '업무용';
@@ -498,20 +556,29 @@ function getComplexLabel() {
   return c ? c.label : '';
 }
 
+/* 매물 표시 텍스트 (기존단지선택/직접입력 공통 진입점) */
+function getPropertyDisplayText() {
+  const bldgName = state.buildingName ? ` ${state.buildingName}` : '';
+  const bldgDong = state.buildingDong ? ` ${state.buildingDong}동` : '';
+  const bldgHo   = state.buildingHo   ? ` ${state.buildingHo}호`   : '';
+  const suffix = `${bldgName}${bldgDong}${bldgHo}`;
+  const label = state.propertyMode === 'custom'
+    ? (state.customPropertyType || '')
+    : getComplexLabel();
+  return `${label}${suffix}`;
+}
+
 /* =========================================================
    TEXT GENERATION
 ========================================================= */
 function generateText() {
-  const complexLabel = getComplexLabel();
-  const bldgName = state.buildingName ? ` ${state.buildingName}` : '';
-  const bldgDong = state.buildingDong ? ` ${state.buildingDong}동` : '';
-  const bldgHo   = state.buildingHo   ? ` ${state.buildingHo}호`   : '';
-  const bldg = `${bldgName}${bldgDong}${bldgHo}`;
+  const propertyLine = getPropertyDisplayText();
   const isBizOft = isBusinessOft();
   const { balance } = calcBalance();
   const deposit = parseNum(state.deposit);
   const contractMoney = parseNum(state.contractMoney);
   const todayDeposit = parseNum(state.todayDeposit);
+  const monthlyRent = parseNum(state.monthlyRent);
 
   const depositLine = formatMoney(String(deposit));
   const monthlyRentLine = state.contractType === '월세' ? formatMoney(state.monthlyRent) : '';
@@ -529,15 +596,19 @@ function generateText() {
   if (coName) {
     lines.push(`${agName}과 ${coName}이 진행하는 공동중개계약입니다.`);
   }
-  lines.push(`[${complexLabel}${bldg} ${state.contractType} 계약내용]`);
+  lines.push(`[${propertyLine} ${state.contractType} 계약내용]`);
   lines.push(`[문자발신일 ${fmtSendDate(state.sendDate)}]`);
   lines.push(``);
   lines.push(`■ 계약 조건`);
 
-  if (state.contractType === '전세') {
+  if (state.propertyMode === 'custom' && state.customAddress) {
+    lines.push(`· 주소: ${state.customAddress}`);
+  }
+
+  if (deposit > 0) {
     lines.push(`· 보증금: ${depositLine}`);
-  } else {
-    lines.push(`· 보증금: ${depositLine}`);
+  }
+  if (state.contractType === '월세' && monthlyRent > 0) {
     const typeStr = state.monthlyType === '선불' ? ' / 선불' : ' / 후불';
     if (isBizOft) {
       const vatStr = state.vat === '별도' ? ' (부가세 별도)' : ' (부가세 포함)';
@@ -547,12 +618,12 @@ function generateText() {
     }
   }
 
-  lines.push(`· 입주 예정일: ${fmtDate(state.moveInDate)}`);
+  if (state.moveInDate) lines.push(`· 입주 예정일: ${fmtDate(state.moveInDate)}`);
   lines.push(`· 계약 기간: ${getPeriod()}`);
   lines.push(``);
   lines.push(`■ 계약금`);
-  lines.push(`· 전체계약금: ${contractMoneyLine}`);
-  lines.push(`· 금일계약금: ${todayLine}`);
+  if (contractMoney > 0) lines.push(`· 전체계약금: ${contractMoneyLine}`);
+  if (todayDeposit > 0) lines.push(`· 금일계약금: ${todayLine}`);
   if (balance > 0) {
     lines.push(`· 나머지 계약금: ${balanceLine} (계약서 작성시 입금하기로 한다.)`);
   }
@@ -561,9 +632,13 @@ function generateText() {
   }
   lines.push(``);
   lines.push(`■ 임대인 계좌`);
-  lines.push(`· 은행: ${state.landlordBank || '____'}`);
-  lines.push(`· 계좌번호: ${state.landlordAccount || '____'}`);
-  lines.push(`· 예금주: ${state.landlordName || '____'}`);
+  if (state.accountLater) {
+    lines.push(`· 계좌 정보는 추후 안내드리겠습니다.`);
+  } else if (state.landlordBank || state.landlordAccount || state.landlordName) {
+    lines.push(`· 은행: ${state.landlordBank || '____'}`);
+    lines.push(`· 계좌번호: ${state.landlordAccount || '____'}`);
+    lines.push(`· 예금주: ${state.landlordName || '____'}`);
+  }
   lines.push(``);
   lines.push(`■ 특약 사항`);
 
@@ -572,6 +647,24 @@ function generateText() {
   if (isBizOft) {
     lines.push(`· 업무용 오피스텔로 전입신고가 불가합니다.`);
     lines.push(`· 세금계산서 발급이 가능합니다.`);
+  }
+  if (state.clauseAsIs) lines.push(`· 본 물건은 현재 시설 상태 그대로 계약이 진행됩니다.`);
+  if (state.clausePetBan) lines.push(`· 반려동물 사육을 금지합니다.`);
+  if (state.clauseSmokeBan) lines.push(`· 실내 흡연을 금지합니다.`);
+  if (state.clauseRestore) lines.push(`· 임차인은 계약 종료 시 원상복구 후 반환합니다.`);
+  if (state.clauseUtilSeparate) lines.push(`· 관리비 및 공과금은 별도이며 임차인이 부담합니다.`);
+  if (state.clauseLoanCoop) lines.push(`· 임차인의 전세자금대출 진행에 협조합니다.`);
+  if (state.clauseNoRightsChange) lines.push(`· 임대인은 잔금일까지 목적물에 권리변동(근저당 설정 등)이 없도록 합니다.`);
+  if (isOft()) {
+    if (state.clauseOftVatSeparate) lines.push(`· 업무용 오피스텔로 부가세는 별도로 안내드립니다.`);
+    if (state.clauseOftResidentCheck) lines.push(`· 주거용 전입신고 가능 여부는 사전에 확인해 주시기 바랍니다.`);
+    if (state.clauseOftNoResident) lines.push(`· 본 물건은 전입신고가 불가능한 조건입니다.`);
+    if (state.clauseOftBizReg) lines.push(`· 사업자등록이 가능한 물건입니다.`);
+    if (state.clauseOftMgmtFeeCheck) lines.push(`· 관리비 부과 기준은 사전에 확인해 주시기 바랍니다.`);
+  }
+  if (state.clauseFreeText && state.clauseFreeText.trim()) {
+    lines.push(`· 기타 특약사항`);
+    state.clauseFreeText.split('\n').forEach(line => lines.push(`  ${line}`));
   }
   lines.push(``);
   lines.push(`■ 해약금 규정`);
@@ -585,6 +678,115 @@ function generateText() {
   }
 
   return lines.join('\n');
+}
+
+/* 미리보기 = 최종 결과와 동일한 생성 로직 사용 (중복 방지) */
+function getPreviewText() {
+  return generateText();
+}
+
+/* =========================================================
+   VALIDATION (step2 → step3 이동 시)
+========================================================= */
+const FIELD_ORDER = [
+  'property', 'buildingDong', 'buildingHo', 'contractType',
+  'deposit', 'monthlyRent', 'contractMoney', 'todayDeposit',
+  'moveInDate', 'contractSignDate',
+  'landlordBank', 'landlordAccount', 'landlordName',
+];
+
+function validateStep2() {
+  const errors = {};
+
+  if (state.propertyMode === 'custom') {
+    if (!state.customPropertyType) errors.property = '주택 유형을 선택해 주세요.';
+    else if (!state.buildingName.trim()) errors.property = '단지명 또는 건물명을 입력해 주세요.';
+  } else if (!state.complex) {
+    errors.property = '단지를 선택해 주세요.';
+  }
+
+  if (!state.buildingDong.trim()) errors.buildingDong = '동을 입력해 주세요.';
+  if (!state.buildingHo.trim()) errors.buildingHo = '호수를 입력해 주세요.';
+  if (!state.contractType) errors.contractType = '계약 유형을 선택해 주세요.';
+  if (!parseNum(state.deposit)) errors.deposit = '보증금을 입력해 주세요.';
+  if (state.contractType === '월세' && !parseNum(state.monthlyRent)) errors.monthlyRent = '월세를 입력해 주세요.';
+  if (!parseNum(state.contractMoney)) errors.contractMoney = '전체계약금을 입력해 주세요.';
+  if (!parseNum(state.todayDeposit)) errors.todayDeposit = '금일 입금 계약금을 입력해 주세요.';
+  if (!state.moveInDate) errors.moveInDate = '입주예정일을 선택해 주세요.';
+  if (!state.contractSignDate) errors.contractSignDate = '계약서 작성일을 선택해 주세요.';
+
+  if (!state.accountLater) {
+    if (!state.landlordBank.trim()) errors.landlordBank = '은행명을 입력해 주세요.';
+    if (!state.landlordAccount.trim()) errors.landlordAccount = '계좌번호를 입력해 주세요.';
+    if (!state.landlordName.trim()) errors.landlordName = '예금주를 입력해 주세요.';
+  }
+
+  return errors;
+}
+
+/* 입력 중 실시간으로 해당 필드 오류만 갱신 (전체 재렌더 없이) */
+function updateFieldError(key) {
+  if (!showErrors) return;
+  const errors = validateStep2();
+  const errEl = document.getElementById(`err-${key}`);
+  const inputEl = document.getElementById(`fld-${key}`);
+  if (errEl) errEl.textContent = errors[key] ? `⚠ ${errors[key]}` : '';
+  if (inputEl) inputEl.style.borderColor = errors[key] ? '#ff6b6b' : '';
+}
+
+function scrollToFirstError(errors) {
+  const firstKey = FIELD_ORDER.find(k => errors[k]);
+  if (!firstKey) return;
+  const el = document.getElementById(`fld-${firstKey}`);
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (el.focus) el.focus();
+  }
+}
+
+window.tryProceedToStep3 = function() {
+  const errors = validateStep2();
+  if (Object.keys(errors).length > 0) {
+    showErrors = true;
+    renderStep2();
+    scrollToFirstError(errors);
+    return;
+  }
+  showErrors = false;
+  goStep(3);
+};
+
+/* =========================================================
+   PC 실시간 미리보기 패널 (900px 이상)
+========================================================= */
+function updatePreview() {
+  const el = document.getElementById('preview-content');
+  if (!el) return;
+  el.textContent = getPreviewText();
+}
+
+function updateLayout() {
+  const layout = document.getElementById('wizard-layout');
+  const panel = document.getElementById('preview-panel');
+  const mainEl = document.getElementById('main-el');
+  if (!layout || !panel || !mainEl) return;
+  const showPreview = window.innerWidth >= 900 && state.step !== 4;
+  if (showPreview) {
+    layout.classList.add('has-preview');
+    panel.style.display = 'block';
+    mainEl.style.maxWidth = '1180px';
+    updatePreview();
+  } else {
+    layout.classList.remove('has-preview');
+    panel.style.display = 'none';
+    mainEl.style.maxWidth = '760px';
+  }
+}
+window.addEventListener('resize', updateLayout);
+if (window.matchMedia) {
+  const mq = window.matchMedia('(min-width: 900px)');
+  if (mq.addEventListener) mq.addEventListener('change', updateLayout);
+  else if (mq.addListener) mq.addListener(updateLayout); // 구형 브라우저 대응
 }
 
 /* =========================================================
@@ -644,11 +846,21 @@ function renderIndicator() {
 
 /* --- STEP 1 --- */
 function renderStep1() {
+  const customValid = !!(state.customPropertyType && state.buildingName.trim() && state.buildingDong.trim() && state.buildingHo.trim());
+  const nextDisabled = state.propertyMode === 'custom' ? !customValid : !state.complex;
+
   document.getElementById('step-1').innerHTML = `
     <div style="margin-bottom:24px;">
       <div style="font-size:22px;font-weight:700;color:#dbe1fe;margin-bottom:6px;">매물 선택</div>
       <div style="font-size:13px;color:#d0c5af;">계약할 단지 유형을 선택해 주세요.</div>
     </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <div class="label">입력 방식</div>
+      ${RadioPill('propertyMode', [{ label: '기존 단지 선택', value: 'select' }, { label: '직접 입력', value: 'custom' }], state.propertyMode)}
+    </div>
+
+    ${state.propertyMode === 'select' ? `
     <div style="display:grid;gap:12px;">
       ${COMPLEX_LIST.map(c => `
         <div onclick="selectComplex('${c.value}')"
@@ -668,18 +880,53 @@ function renderStep1() {
         </div>
       `).join('')}
     </div>
+    ` : `
+    <div class="card" style="margin-bottom:16px;">
+      <div style="margin-bottom:16px;">
+        <div class="label">주택 유형</div>
+        ${RadioPill('customPropertyType', [{ label: '아파트', value: '아파트' }, { label: '오피스텔', value: '오피스텔' }], state.customPropertyType)}
+      </div>
+      <div style="margin-bottom:16px;">
+        <label class="label">단지명 또는 건물명</label>
+        <input class="field" type="text" placeholder="예: 운정 푸르지오"
+          value="${state.buildingName}" oninput="onInput('buildingName',this.value)" />
+      </div>
+      <div style="margin-bottom:16px;">
+        <label class="label">주소 <span style="color:#4d4635;font-size:10px;">(선택)</span></label>
+        <input class="field" type="text" placeholder="예: 경기도 파주시 야당동 ..."
+          value="${state.customAddress}" oninput="onInput('customAddress',this.value)" />
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+          <label class="label">동</label>
+          <input class="field" type="text" placeholder="예: 101"
+            value="${state.buildingDong}" oninput="onInput('buildingDong',this.value)" />
+        </div>
+        <div>
+          <label class="label">호수</label>
+          <input class="field" type="text" placeholder="예: 1501"
+            value="${state.buildingHo}" oninput="onInput('buildingHo',this.value)" />
+        </div>
+      </div>
+    </div>
+    `}
+
     <div style="margin-top:32px;display:flex;justify-content:flex-end;" class="btn-row">
-      <button class="btn-gold" onclick="goStep(2)" ${!state.complex ? 'disabled style="opacity:.4;cursor:not-allowed;"' : ''}>
+      <button class="btn-gold" onclick="goStep(2)" ${nextDisabled ? 'disabled style="opacity:.4;cursor:not-allowed;"' : ''}>
         다음 단계 &rarr;
       </button>
     </div>
   `;
+  updatePreview();
 }
 
 /* --- STEP 2 --- */
 function renderStep2() {
   const { balance } = calcBalance();
   const showBalance = balance > 0;
+  const errors = showErrors ? validateStep2() : {};
+  const errBox = (key) => `<div id="err-${key}" style="font-size:12px;color:#ff6b6b;margin-top:5px;">${errors[key] ? '⚠ ' + errors[key] : ''}</div>`;
+  const errBorder = (key) => errors[key] ? 'border-color:#ff6b6b;' : '';
 
   document.getElementById('step-2').innerHTML = `
     <div style="margin-bottom:24px;">
@@ -695,6 +942,7 @@ function renderStep2() {
       </div>
     </div>
 
+    ${state.propertyMode === 'select' ? `
     <div class="card" style="margin-bottom:16px;">
       <div style="margin-bottom:16px;">
         <label class="label">${isOft() ? '오피스텔명' : '아파트명'}</label>
@@ -705,20 +953,26 @@ function renderStep2() {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
         <div>
           <label class="label">동</label>
-          <input class="field" type="text" tabindex="2" placeholder="예: 101"
-            value="${state.buildingDong}" oninput="onInput('buildingDong',this.value)" />
+          <input class="field" id="fld-buildingDong" type="text" tabindex="2" placeholder="예: 101"
+            value="${state.buildingDong}" oninput="onInput('buildingDong',this.value)"
+            style="${errBorder('buildingDong')}" />
+          ${errBox('buildingDong')}
         </div>
         <div>
           <label class="label">호수</label>
-          <input class="field" type="text" tabindex="3" placeholder="예: 1501"
-            value="${state.buildingHo}" oninput="onInput('buildingHo',this.value)" />
+          <input class="field" id="fld-buildingHo" type="text" tabindex="3" placeholder="예: 1501"
+            value="${state.buildingHo}" oninput="onInput('buildingHo',this.value)"
+            style="${errBorder('buildingHo')}" />
+          ${errBox('buildingHo')}
         </div>
       </div>
     </div>
+    ` : ''}
 
     <div class="card" style="margin-bottom:16px;">
-      <div class="label">계약 유형</div>
+      <div id="fld-contractType" class="label" tabindex="-1">계약 유형</div>
       ${RadioPill('contractType', [{label:'전세',value:'전세'},{label:'월세',value:'월세'}], state.contractType)}
+      ${errBox('contractType')}
     </div>
 
     ${isOft() ? `
@@ -737,19 +991,21 @@ function renderStep2() {
       <div style="display:grid;gap:20px;">
         <div>
           <label class="label">보증금</label>
-          <input class="field" type="text" inputmode="numeric" tabindex="4" placeholder="예: 20,000,000"
+          <input class="field" id="fld-deposit" type="text" inputmode="numeric" tabindex="4" placeholder="예: 20,000,000"
             value="${state.deposit}" oninput="onInput('deposit',this.value)"
-            onblur="autoComma('deposit',this)" />
+            onblur="autoComma('deposit',this)" style="${errBorder('deposit')}" />
           <div style="font-size:12px;color:#d4af37;margin-top:5px;min-height:18px;">${formatMoney(state.deposit)}</div>
+          ${errBox('deposit')}
         </div>
 
         ${state.contractType === '월세' ? `
         <div>
           <label class="label">월세</label>
-          <input class="field" type="text" inputmode="numeric" tabindex="5" placeholder="예: 500,000"
+          <input class="field" id="fld-monthlyRent" type="text" inputmode="numeric" tabindex="5" placeholder="예: 500,000"
             value="${state.monthlyRent}" oninput="onInput('monthlyRent',this.value)"
-            onblur="autoComma('monthlyRent',this)" />
+            onblur="autoComma('monthlyRent',this)" style="${errBorder('monthlyRent')}" />
           <div style="font-size:12px;color:#d4af37;margin-top:5px;min-height:18px;">${formatMoney(state.monthlyRent)}</div>
+          ${errBox('monthlyRent')}
         </div>
         <div>
           <label class="label">납부 방식</label>
@@ -769,7 +1025,9 @@ function renderStep2() {
       <div style="display:grid;gap:20px;">
         <div>
           <label class="label">입주 예정일</label>
-          <input class="field" type="date" tabindex="6" value="${state.moveInDate}" onchange="onInput('moveInDate',this.value)" />
+          <input class="field" id="fld-moveInDate" type="date" tabindex="6" value="${state.moveInDate}" onchange="onInput('moveInDate',this.value)"
+            style="${errBorder('moveInDate')}" />
+          ${errBox('moveInDate')}
         </div>
         <div>
           <label class="label">계약 기간</label>
@@ -787,17 +1045,19 @@ function renderStep2() {
       <div style="display:grid;gap:20px;">
         <div>
           <label class="label">전체계약금</label>
-          <input class="field" type="text" inputmode="numeric" tabindex="8" placeholder="예: 2,000,000"
+          <input class="field" id="fld-contractMoney" type="text" inputmode="numeric" tabindex="8" placeholder="예: 2,000,000"
             value="${state.contractMoney}" oninput="onInput('contractMoney',this.value)"
-            onblur="autoComma('contractMoney',this)" />
+            onblur="autoComma('contractMoney',this)" style="${errBorder('contractMoney')}" />
           <div style="font-size:12px;color:#d4af37;margin-top:5px;min-height:18px;">${formatMoney(state.contractMoney)}</div>
+          ${errBox('contractMoney')}
         </div>
         <div>
           <label class="label">금일계약금</label>
-          <input class="field" type="text" inputmode="numeric" tabindex="9" placeholder="예: 1,000,000"
+          <input class="field" id="fld-todayDeposit" type="text" inputmode="numeric" tabindex="9" placeholder="예: 1,000,000"
             value="${state.todayDeposit}" oninput="onInput('todayDeposit',this.value)"
-            onblur="autoComma('todayDeposit',this)" />
+            onblur="autoComma('todayDeposit',this)" style="${errBorder('todayDeposit')}" />
           <div style="font-size:12px;color:#d4af37;margin-top:5px;min-height:18px;">${formatMoney(state.todayDeposit)}</div>
+          ${errBox('todayDeposit')}
         </div>
         ${showBalance ? `
         <div style="background:#060d21;border:1px solid #22293e;border-radius:4px;padding:12px 16px;">
@@ -807,18 +1067,53 @@ function renderStep2() {
         </div>
         ` : ''}
         <div>
-          <label class="label">계약서 작성일 <span style="color:#4d4635;font-size:10px;">(선택)</span></label>
-          <input class="field" type="date" tabindex="10" value="${state.contractSignDate}" onchange="onInput('contractSignDate',this.value)" />
+          <label class="label">계약서 작성일</label>
+          <input class="field" id="fld-contractSignDate" type="date" tabindex="10" value="${state.contractSignDate}" onchange="onInput('contractSignDate',this.value)"
+            style="${errBorder('contractSignDate')}" />
+          ${errBox('contractSignDate')}
           ${state.contractSignDate ? `<div style="font-size:12px;color:#d4af37;margin-top:5px;">- 계약서 작성일: ${fmtContractSignDate(state.contractSignDate)} (시간은 추후연락하기로함)</div>` : ''}
         </div>
       </div>
     </div>
 
+    <div class="card" style="margin-bottom:16px;">
+      <div style="font-size:13px;font-weight:700;color:#d4af37;letter-spacing:.05em;text-transform:uppercase;margin-bottom:16px;">임대인 계좌 정보</div>
+      <div style="margin-bottom:14px;">
+        ${Checkbox('accountLater', state.accountLater, '계좌정보는 추후 안내')}
+      </div>
+      ${!state.accountLater ? `
+      <div style="display:grid;gap:16px;">
+        <div>
+          <label class="label">은행명</label>
+          <input class="field" id="fld-landlordBank" type="text" placeholder="예: 국민은행"
+            value="${state.landlordBank}" oninput="onInput('landlordBank',this.value)"
+            style="${errBorder('landlordBank')}" />
+          ${errBox('landlordBank')}
+        </div>
+        <div>
+          <label class="label">계좌번호</label>
+          <input class="field" id="fld-landlordAccount" type="text" placeholder="예: 123-456-789012"
+            value="${state.landlordAccount}" oninput="onInput('landlordAccount',this.value)"
+            style="${errBorder('landlordAccount')}" />
+          ${errBox('landlordAccount')}
+        </div>
+        <div>
+          <label class="label">예금주</label>
+          <input class="field" id="fld-landlordName" type="text" placeholder="예: 홍길동"
+            value="${state.landlordName}" oninput="onInput('landlordName',this.value)"
+            style="${errBorder('landlordName')}" />
+          ${errBox('landlordName')}
+        </div>
+      </div>
+      ` : `<div style="font-size:12px;color:#99907c;">계약 문자에 "계좌 정보는 추후 안내드리겠습니다"라고 표시됩니다.</div>`}
+    </div>
+
     <div style="display:flex;justify-content:space-between;margin-top:32px;" class="btn-row">
       <button class="btn-ghost" onclick="goStep(1)">&larr; 이전</button>
-      <button class="btn-gold" onclick="goStep(3)">다음 단계 &rarr;</button>
+      <button class="btn-gold" onclick="tryProceedToStep3()">다음 단계 &rarr;</button>
     </div>
   `;
+  updatePreview();
 }
 
 /* --- STEP 3 --- */
@@ -859,24 +1154,34 @@ function renderStep3() {
     </div>
 
     <div class="card" style="margin-bottom:16px;">
-      <div style="font-size:13px;font-weight:700;color:#d4af37;letter-spacing:.05em;text-transform:uppercase;margin-bottom:16px;">임대인 계좌 정보</div>
-      <div style="display:grid;gap:16px;">
-        <div>
-          <label class="label">은행명</label>
-          <input class="field" type="text" placeholder="예: 국민은행"
-            value="${state.landlordBank}" oninput="onInput('landlordBank',this.value)" />
-        </div>
-        <div>
-          <label class="label">계좌번호</label>
-          <input class="field" type="text" placeholder="예: 123-456-789012"
-            value="${state.landlordAccount}" oninput="onInput('landlordAccount',this.value)" />
-        </div>
-        <div>
-          <label class="label">예금주</label>
-          <input class="field" type="text" placeholder="예: 홍길동"
-            value="${state.landlordName}" oninput="onInput('landlordName',this.value)" />
-        </div>
+      <div style="font-size:13px;font-weight:700;color:#d4af37;letter-spacing:.05em;text-transform:uppercase;margin-bottom:16px;">추가 특약 (선택)</div>
+      <div style="display:grid;gap:14px;">
+        ${Checkbox('clauseAsIs', state.clauseAsIs, '현 시설 상태에서 계약')}
+        ${Checkbox('clausePetBan', state.clausePetBan, '반려동물 금지')}
+        ${Checkbox('clauseSmokeBan', state.clauseSmokeBan, '흡연 금지')}
+        ${Checkbox('clauseRestore', state.clauseRestore, '임차인 원상복구')}
+        ${Checkbox('clauseUtilSeparate', state.clauseUtilSeparate, '관리비 및 공과금 별도')}
+        ${Checkbox('clauseLoanCoop', state.clauseLoanCoop, '전세대출 협조')}
+        ${Checkbox('clauseNoRightsChange', state.clauseNoRightsChange, '임대인은 잔금일까지 권리변동 금지')}
       </div>
+      ${isOft() ? `
+      <hr class="divider" style="margin:18px 0 14px;">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#d4af37;margin-bottom:12px;">오피스텔 특약</div>
+      <div style="display:grid;gap:14px;">
+        ${Checkbox('clauseOftVatSeparate', state.clauseOftVatSeparate, '업무용 오피스텔 부가세 별도')}
+        ${Checkbox('clauseOftResidentCheck', state.clauseOftResidentCheck, '주거용 전입신고 가능 여부 확인')}
+        ${Checkbox('clauseOftNoResident', state.clauseOftNoResident, '전입신고 불가 조건')}
+        ${Checkbox('clauseOftBizReg', state.clauseOftBizReg, '사업자등록 가능 여부')}
+        ${Checkbox('clauseOftMgmtFeeCheck', state.clauseOftMgmtFeeCheck, '관리비 부과 기준 확인')}
+      </div>
+      ` : ''}
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <div style="font-size:13px;font-weight:700;color:#d4af37;letter-spacing:.05em;text-transform:uppercase;margin-bottom:16px;">기타 특약사항</div>
+      <textarea class="field" id="fld-clauseFreeText" rows="4" style="resize:vertical;min-height:96px;line-height:1.6;"
+        placeholder="자유롭게 특약사항을 입력해 주세요. (여러 줄 입력 가능, 비워두면 최종 문자에 포함되지 않습니다)"
+        oninput="onInput('clauseFreeText',this.value)">${state.clauseFreeText}</textarea>
     </div>
 
     <div style="display:flex;justify-content:space-between;margin-top:32px;" class="btn-row">
@@ -884,6 +1189,7 @@ function renderStep3() {
       <button class="btn-gold" onclick="goStep(4)">문자 생성 ✦</button>
     </div>
   `;
+  updatePreview();
 }
 
 /* --- STEP 4 --- */
@@ -944,25 +1250,33 @@ window.selectComplex = function(v) {
   state.complex = v;
   save();
   renderStep1();
+  updatePreview();
 };
 
 window.toggleClick = function(id) {
   state[id] = !state[id];
   save();
+  if (state.step === 1) renderStep1();
   if (state.step === 2) renderStep2();
   if (state.step === 3) renderStep3();
+  updatePreview();
 };
 
 window.toggleCheck = function(id) {
   state[id] = !state[id];
   save();
-  renderStep3();
+  if (state.step === 1) renderStep1();
+  if (state.step === 2) renderStep2();
+  if (state.step === 3) renderStep3();
+  updatePreview();
 };
 
 window.onRadio = function(name, value) {
   state[name] = value;
   save();
+  if (state.step === 1) renderStep1();
   if (state.step === 2) renderStep2();
+  updatePreview();
 };
 
 window.onInput = function(key, value) {
@@ -984,6 +1298,19 @@ window.onInput = function(key, value) {
     if (balEl && balance > 0) balEl.textContent = formatMoney(String(balance));
     else if (balance <= 0 && balEl) balEl.textContent = '';
   }
+  updateFieldError(key);
+  updatePreview();
+  // 매물 직접입력(동/호수/건물명) 변경 시 step1 다음 버튼 활성화 조건만 갱신 (전체 재렌더 없이 - 포커스 유지)
+  if (state.step === 1 && ['buildingName','buildingDong','buildingHo'].includes(key)) {
+    const customValid = !!(state.customPropertyType && state.buildingName.trim() && state.buildingDong.trim() && state.buildingHo.trim());
+    const nextDisabled = state.propertyMode === 'custom' ? !customValid : !state.complex;
+    const btn = document.querySelector('#step-1 .btn-gold');
+    if (btn) {
+      btn.disabled = nextDisabled;
+      btn.style.opacity = nextDisabled ? '.4' : '';
+      btn.style.cursor = nextDisabled ? 'not-allowed' : '';
+    }
+  }
 };
 
 window.autoComma = function(key, el) {
@@ -994,6 +1321,7 @@ window.autoComma = function(key, el) {
     save();
     renderStep2();
   }
+  updatePreview();
 };
 
 window.goStep = function(n) {
@@ -1007,6 +1335,7 @@ window.goStep = function(n) {
   if (n === 2) renderStep2();
   if (n === 3) renderStep3();
   if (n === 4) renderStep4();
+  updateLayout();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
@@ -1083,7 +1412,26 @@ window.resetAll = function() {
     landlordBank: '',
     landlordAccount: '',
     landlordName: '',
+
+    propertyMode: 'select',
+    customPropertyType: '아파트',
+    customAddress: '',
+    accountLater: false,
+    clauseFreeText: '',
+    clauseAsIs: false,
+    clausePetBan: false,
+    clauseSmokeBan: false,
+    clauseRestore: false,
+    clauseUtilSeparate: false,
+    clauseLoanCoop: false,
+    clauseNoRightsChange: false,
+    clauseOftVatSeparate: false,
+    clauseOftResidentCheck: false,
+    clauseOftNoResident: false,
+    clauseOftBizReg: false,
+    clauseOftMgmtFeeCheck: false,
   });
+  showErrors = false;
   save();
   goStep(1);
 };
@@ -1106,6 +1454,7 @@ window.resetAll = function() {
   if (state.step === 2) renderStep2();
   if (state.step === 3) renderStep3();
   if (state.step === 4) renderStep4();
+  updateLayout();
 })();
 </script>
 
