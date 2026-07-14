@@ -388,7 +388,7 @@ const state = {
   customPeriod: '',
   contractMoney: '',
   todayDeposit: '',
-  sendDate: new Date().toISOString().split('T')[0],
+  sendDate: getTodayKST(),
   contractSignDate: '',
   oftUse: '주거용',
   coAgent: false,
@@ -436,6 +436,8 @@ function load() {
   if (s) Object.assign(state, JSON.parse(s));
   // 구버전 호환: 공동중개 상호가 다른 키(coAgency)로 저장되어 있던 경우 이관
   if (!state.coAgentName && state.coAgency) state.coAgentName = state.coAgency;
+  // 문자발신일은 저장된 값과 무관하게 페이지를 열 때마다 한국시간 기준 오늘 날짜로 갱신
+  state.sendDate = getTodayKST();
 }
 load();
 
@@ -540,6 +542,13 @@ function parseNum(s) {
 }
 
 /* 날짜 포맷 */
+/* 한국시간(KST, UTC+9) 기준 오늘 날짜 (YYYY-MM-DD) — 기기 시간대와 무관하게 계산 */
+function getTodayKST() {
+  const now = new Date();
+  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  return kst.toISOString().split('T')[0];
+}
+
 function fmtDate(d) {
   if (!d) return '';
   const [y, m, day] = d.split('-');
@@ -1437,7 +1446,7 @@ window.resetAll = function() {
     customPeriod: '',
     contractMoney: '',
     todayDeposit: '',
-    sendDate: new Date().toISOString().split('T')[0],
+    sendDate: getTodayKST(),
     contractSignDate: '',
     coAgent: false,
     coAgentName: '',
