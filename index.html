@@ -226,75 +226,32 @@
       color: #9ca3af;
       text-align: center;
       margin-top: 8px;
-      margin-bottom: 22px;
+      margin-bottom: 18px;
     }
-    .doc-section {
-      margin-bottom: 22px;
-    }
-    .doc-section:last-child { margin-bottom: 0; }
-    .doc-section-title {
-      font-size: 13px;
-      font-weight: 800;
-      color: #0b1a3a;
-      letter-spacing: .03em;
-      border-bottom: 2px solid #0b1a3a;
-      padding-bottom: 6px;
-      margin-bottom: 10px;
-    }
-    .doc-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 12px;
-      padding: 7px 0;
-      border-bottom: 1px solid #e5e7eb;
-      font-size: 13px;
-    }
-    .doc-row:last-child { border-bottom: none; }
-    .doc-label {
-      color: #6b7280;
-      flex-shrink: 0;
-      white-space: nowrap;
-    }
-    .doc-value {
+    /* 문자 원문 전체를 그대로 옮긴 문서 본문 줄 */
+    .doc-line {
+      font-size: 13.5px;
+      line-height: 1.85;
       color: #1a2233;
-      font-weight: 600;
-      text-align: right;
+      white-space: pre-wrap;
       word-break: break-word;
-      flex: 1;
-      min-width: 0;
     }
-    .doc-value-money {
-      color: #92610a;
+    .doc-line-heading {
+      font-size: 14px;
       font-weight: 800;
-      background: #fff7e0;
-      padding: 2px 10px;
-      border-radius: 3px;
-      display: inline-block;
-    }
-    .doc-value-strong {
       color: #0b1a3a;
-      font-weight: 800;
-    }
-    .doc-clause-box {
-      background: #f8f9fb;
-      border: 1px solid #e5e7eb;
-      border-radius: 4px;
-      padding: 14px 16px;
-    }
-    .doc-clause-list {
-      margin: 0;
-      padding-left: 18px;
-    }
-    .doc-clause-list li {
-      font-size: 12.5px;
-      color: #333333;
-      line-height: 1.75;
+      margin: 16px 0 8px;
+      white-space: pre-wrap;
       word-break: break-word;
     }
-    .doc-signature {
-      border-top: 2px solid #0b1a3a;
-      padding-top: 14px;
+    .doc-line-money {
+      font-weight: 700;
+      color: #92610a;
+    }
+    .doc-divider {
+      border: none;
+      border-top: 1px solid #d1d5db;
+      margin: 16px 0;
     }
 
     /* radio pill */
@@ -1434,165 +1391,122 @@ function renderStep3() {
   updatePreview();
 }
 
-/* 확인서(문서형 뷰) 한 줄 - 값이 없으면 렌더링하지 않음 */
-function docRow(label, value, emphasis) {
-  if (!value) return '';
-  let valueClass = 'doc-value';
-  if (emphasis === 'money') valueClass += ' doc-value-money';
-  if (emphasis === 'strong') valueClass += ' doc-value-strong';
-  return `<div class="doc-row"><div class="doc-label">${label}</div><div class="${valueClass}">${value}</div></div>`;
+/* HTML 특수문자 이스케이프 (문자 원문을 그대로 문서에 옮길 때 마크업 깨짐 방지) */
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
 
-/* 부동산 계약내용 확인서 (문서형 뷰) HTML 생성 - 결과 화면과 이미지 저장이 공통으로 사용 */
-function buildDocumentCardHTML() {
-  const propertyType = isOft() ? '오피스텔' : '아파트';
-  const dongHo = getDongHoText();
-  const addressLine = state.customAddress || getPropertyDisplayText();
+/* generateText() 전체 원문을 줄 단위로 문서형 HTML로 변환 (■ 제목, 구분선, 금액 줄만 가볍게 강조) */
+function renderDocumentBodyHTML(text) {
+  return text.split('\n').map(line => {
+    const trimmed = line.trim();
+    if (!trimmed) return `<div style="height:10px;"></div>`;
+    if (trimmed.startsWith('■')) {
+      return `<div class="doc-line-heading">${escapeHtml(line)}</div>`;
+    }
+    if (/^─{3,}$/.test(trimmed)) {
+      return `<hr class="doc-divider">`;
+    }
+    const isMoneyLine = /[0-9][0-9,]*원/.test(trimmed);
+    return `<div class="doc-line${isMoneyLine ? ' doc-line-money' : ''}">${escapeHtml(line)}</div>`;
+  }).join('');
+}
 
-  const todayDeposit = parseNum(state.todayDeposit);
-  const contractMoneyLine = formatWon(state.contractMoney) +
-    (todayDeposit > 0 ? ` <span style="font-weight:600;color:#6b7280;">(금일 ${formatWon(state.todayDeposit)} 지급)</span>` : '');
-  const { balance } = calcBalance();
-  const balanceLine = balance > 0 ? formatWon(String(balance)) : '';
-
-  let accountLine = '';
-  if (state.accountLater) {
-    accountLine = '추후 안내';
-  } else if (state.landlordBank || state.landlordAccount || state.landlordName) {
-    accountLine = [state.landlordBank, state.landlordAccount, state.landlordName].filter(Boolean).join(' / ');
-  }
-
-  const propertyRows = [
-    docRow('부동산 구분', propertyType),
-    docRow('단지명/건물명', state.buildingName),
-    docRow('동·호수', dongHo),
-    docRow('주소/표시명', addressLine),
-  ].join('');
-
-  const contractRows = [
-    docRow('계약 유형', state.contractType),
-    docRow('보증금', formatWon(state.deposit), 'money'),
-    state.contractType === '월세' ? docRow('월세', formatWon(state.monthlyRent), 'money') : '',
-    docRow('계약금', parseNum(state.contractMoney) > 0 ? contractMoneyLine : '', 'money'),
-    docRow('잔금', balanceLine, 'money'),
-    docRow('계약일', state.contractSignDate ? fmtDate(state.contractSignDate) : ''),
-    docRow('잔금일/입주일', state.moveInDate ? fmtDate(state.moveInDate) : ''),
-    docRow('임대인 계좌정보', accountLine),
-  ].join('');
-
-  const clauseItems = getAutoClauseList();
-  const freeText = state.clauseFreeText && state.clauseFreeText.trim() ? state.clauseFreeText.trim() : '';
-  const hasClauses = clauseItems.length > 0 || !!freeText;
-  const clauseBoxHtml = hasClauses ? `
-    <div class="doc-clause-box">
-      ${clauseItems.length ? `<ol class="doc-clause-list">${clauseItems.map(c => `<li>${c}</li>`).join('')}</ol>` : ''}
-      ${freeText ? `<div style="margin-top:${clauseItems.length ? '10px' : '0'};font-size:12.5px;color:#333333;white-space:pre-wrap;line-height:1.75;word-break:break-word;">${freeText}</div>` : ''}
-    </div>
-  ` : `<div style="font-size:12.5px;color:#9ca3af;">등록된 특약사항이 없습니다.</div>`;
-
-  const agencyRows = [
-    docRow('중개사무소 상호', agency.name, 'strong'),
-    docRow('대표 공인중개사', agency.repName),
-    docRow('중개사무소 등록번호', agency.licenseNumber),
-    docRow('사무소 주소', agency.address),
-    docRow('대표전화', agency.phone, 'strong'),
-  ].join('');
-
+/* 부동산 계약내용 확인서 (문서형 뷰) HTML 생성 - generateText() 전체 원문을 단일 원본으로 사용.
+   결과 화면(view)과 이미지 저장이 공통으로 사용하며, 문자 복사도 동일한 text를 사용한다. */
+function buildDocumentCardHTML(text) {
   return `
     <div id="doc-card" class="doc-card">
       <div class="doc-title">부동산 계약내용 확인서</div>
       <div class="doc-subtitle">아래 계약조건을 확인해 주시기 바랍니다.</div>
       <div class="doc-meta">생성일자: ${fmtDate(state.sendDate)}</div>
-
-      <div class="doc-section">
-        <div class="doc-section-title">1. 부동산 표시</div>
-        ${propertyRows}
-      </div>
-
-      <div class="doc-section">
-        <div class="doc-section-title">2. 계약 조건</div>
-        ${contractRows}
-      </div>
-
-      <div class="doc-section">
-        <div class="doc-section-title">3. 특약 사항</div>
-        ${clauseBoxHtml}
-      </div>
-
-      <div class="doc-section">
-        <div class="doc-section-title">4. 중개사무소 정보</div>
-        <div class="doc-signature">${agencyRows}</div>
-      </div>
+      ${renderDocumentBodyHTML(text)}
     </div>
   `;
 }
 
 /* --- STEP 4 --- */
+/* step4는 문서형 화면(view)과 원문 수정 화면(edit) 두 가지 모드를 가진다.
+   step4EditedText가 null이 아니면 사용자가 직접 수정한 원문을 우선 사용하며,
+   문자 복사와 이미지 저장 모두 이 함수가 반환하는 동일한 텍스트를 기준으로 동작한다. */
+let step4Mode = 'view';
+let step4EditedText = null;
+function getStep4Text() {
+  return step4EditedText !== null ? step4EditedText : generateText();
+}
+
 function renderStep4() {
-  const txt = generateText();
+  if (step4Mode === 'edit') { renderStep4Edit(); return; }
+  renderStep4View();
+}
+
+function renderStep4View() {
+  const txt = getStep4Text();
   document.getElementById('step-4').innerHTML = `
-    <div style="margin-bottom:24px;">
+    <div style="margin-bottom:16px;">
       <div style="font-size:22px;font-weight:700;color:#dbe1fe;margin-bottom:6px;">계약내용 확인서</div>
-      <div style="font-size:13px;color:#d0c5af;">아래 확인서를 이미지로 저장하거나, 문자 원문을 복사할 수 있습니다.</div>
+      <div style="font-size:13px;color:#d0c5af;">문자 원문 전체가 아래 확인서에 그대로 표시됩니다.</div>
+      <button type="button" onclick="goStep(3)" style="margin-top:12px;background:transparent;border:none;color:#d4af37;font-size:12px;font-weight:600;cursor:pointer;text-decoration:underline;padding:0;">&larr; 이전 단계로</button>
     </div>
 
-    <!-- 문서형 확인서 -->
+    <!-- 문서형 확인서 (문자 원문 전체) -->
     <div style="border-radius:8px;overflow:hidden;margin-bottom:16px;">
-      ${buildDocumentCardHTML()}
+      ${buildDocumentCardHTML(txt)}
     </div>
 
-    <div style="display:flex;justify-content:center;margin-bottom:28px;">
-      <button class="btn-gold" onclick="saveAsImage()">🖼 이미지로 저장</button>
+    <div style="display:flex;gap:10px;margin-bottom:10px;" class="btn-row">
+      <button class="btn-gold" style="flex:1;" onclick="copyText()">📋 문자 복사</button>
+      <button class="btn-gold" style="flex:1;" onclick="saveAsImage()">🖼 이미지로 저장</button>
+    </div>
+    <div style="display:flex;gap:10px;" class="btn-row">
+      <button class="btn-ghost" style="flex:1;" onclick="enterStep4EditMode()">✏ 수정하기</button>
+      <button class="btn-ghost" style="flex:1;border-color:#4d4635;color:#4d4635;" onclick="resetAll()">초기화</button>
+    </div>
+  `;
+}
+
+function renderStep4Edit() {
+  const txt = getStep4Text();
+  document.getElementById('step-4').innerHTML = `
+    <div style="margin-bottom:16px;">
+      <div style="font-size:22px;font-weight:700;color:#dbe1fe;margin-bottom:6px;">문자 원문 수정</div>
+      <div style="font-size:13px;color:#d0c5af;">내용을 수정한 뒤 완료를 누르면 확인서에 반영됩니다.</div>
     </div>
 
-    <hr class="divider">
+    <textarea id="step4-edit-textarea" class="bubble" style="min-height:480px;">${txt}</textarea>
+    <div id="charcount" style="text-align:right;font-size:12px;color:#4d4635;margin:8px 0 16px;"></div>
 
-    <div style="margin:20px 0 16px;">
-      <div style="font-size:14px;font-weight:700;color:#dbe1fe;margin-bottom:4px;">✏ 문자 원문 (수정 가능)</div>
-      <div style="font-size:12px;color:#d0c5af;">메신저로 보낼 문구입니다. 필요하면 직접 수정한 후 복사하세요.</div>
-    </div>
-
-    <!-- Messenger UI -->
-    <div style="background:#060d21;border:1px solid #22293e;border-radius:8px;padding:0;overflow:hidden;margin-bottom:16px;">
-      <!-- chat header -->
-      <div style="background:#141b2f;border-bottom:1px solid #22293e;padding:14px 20px;display:flex;align-items:center;gap:12px;">
-        <div style="width:36px;height:36px;border-radius:50%;background:#d4af37;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#241a00;flex-shrink:0;">${agency.name[0]}</div>
-        <div>
-          <div style="font-size:14px;font-weight:700;color:#dbe1fe;">${agency.name}</div>
-          <div style="font-size:11px;color:#4d4635;">${agency.phone}</div>
-        </div>
-        <div style="margin-left:auto;font-size:11px;color:#4d4635;">${new Date().toLocaleDateString('ko-KR')}</div>
-      </div>
-      <!-- bubble area -->
-      <div style="padding:20px;">
-        <div style="display:flex;gap:10px;align-items:flex-start;">
-          <div style="width:32px;height:32px;border-radius:50%;background:#d4af37;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#241a00;flex-shrink:0;margin-top:2px;">${agency.name[0]}</div>
-          <div style="flex:1;">
-            <textarea id="msg-edit" class="bubble">${txt}</textarea>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 글자수 -->
-    <div id="charcount" style="text-align:right;font-size:12px;color:#4d4635;margin-bottom:16px;"></div>
-
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;" class="btn-row">
-      <button class="btn-ghost" onclick="goStep(3)">&larr; 수정하기</button>
-      <button class="btn-ghost" onclick="resetAll()" style="border-color:#4d4635;color:#4d4635;font-size:13px;">초기화</button>
-      <button class="btn-gold" onclick="copyText()">📋 문자 복사</button>
+    <div style="display:flex;gap:10px;" class="btn-row">
+      <button class="btn-ghost" style="flex:1;" onclick="cancelStep4Edit()">취소</button>
+      <button class="btn-gold" style="flex:1;" onclick="finishStep4Edit()">완료</button>
     </div>
   `;
 
-  // char count
-  const ta = document.getElementById('msg-edit');
+  const ta = document.getElementById('step4-edit-textarea');
   function updateCount() {
-    const len = ta.value.length;
-    document.getElementById('charcount').textContent = `${len}자`;
+    document.getElementById('charcount').textContent = `${ta.value.length}자`;
   }
   ta.addEventListener('input', updateCount);
   updateCount();
 }
+
+window.enterStep4EditMode = function() {
+  step4Mode = 'edit';
+  renderStep4();
+};
+window.cancelStep4Edit = function() {
+  step4Mode = 'view';
+  renderStep4();
+};
+window.finishStep4Edit = function() {
+  const ta = document.getElementById('step4-edit-textarea');
+  step4EditedText = ta.value;
+  step4Mode = 'view';
+  renderStep4();
+};
 
 /* =========================================================
    EVENT HANDLERS (global)
@@ -1718,14 +1632,18 @@ window.goStep = function(n) {
   if (n === 1) renderStep1();
   if (n === 2) renderStep2();
   if (n === 3) renderStep3();
-  if (n === 4) renderStep4();
+  if (n === 4) {
+    // step4에 새로 진입할 때마다 수정 상태를 초기화하고 최신 내용으로 문서를 다시 생성한다.
+    step4Mode = 'view';
+    step4EditedText = null;
+    renderStep4();
+  }
   updateLayout();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
 window.copyText = function() {
-  const ta = document.getElementById('msg-edit');
-  const text = ta ? ta.value : generateText();
+  const text = getStep4Text();
   navigator.clipboard.writeText(text).then(() => {
     const toast = document.getElementById('toast');
     toast.classList.add('show');
@@ -1853,6 +1771,8 @@ window.resetAll = function() {
     clauseOftMgmtFeeCheck: false,
   });
   showErrors = false;
+  step4Mode = 'view';
+  step4EditedText = null;
   save();
   goStep(1);
 };
