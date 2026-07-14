@@ -736,6 +736,17 @@ function getPropertyDisplayText() {
   return `${label}${suffix}`;
 }
 
+/* 부동산 정보 설정(agency) 기반 표시 줄 목록 - 값이 없는 항목은 제외 */
+function getAgencyInfoLines() {
+  const lines = [];
+  if (agency.name) lines.push(agency.name);
+  if (agency.repName) lines.push(`대표 공인중개사: ${agency.repName}`);
+  if (agency.licenseNumber) lines.push(`중개사무소 등록번호: ${agency.licenseNumber}`);
+  if (agency.address) lines.push(`사무소 주소: ${agency.address}`);
+  if (agency.phone) lines.push(`대표전화: ${agency.phone}`);
+  return lines;
+}
+
 /* 체크박스 기반 자동 특약 문장 목록 (문자 생성 / 확인서 뷰 공통) - 자유입력 특약은 별도 처리 */
 function getAutoClauseList() {
   const isBizOft = isBusinessOft();
@@ -872,6 +883,13 @@ function generateText() {
     lines.push(`감사합니다. 🏠 ${agName} · ${coName} 드림.`);
   } else {
     lines.push(`감사합니다. 🏠 ${agName} 드림.`);
+  }
+
+  const agencyInfoLines = getAgencyInfoLines();
+  if (agencyInfoLines.length) {
+    lines.push(``);
+    lines.push(`────────────────`);
+    agencyInfoLines.forEach(l => lines.push(l));
   }
 
   return lines.join('\n');
@@ -1665,6 +1683,11 @@ window.copyText = function() {
   });
 };
 
+/* 파일명에 쓸 수 없는 문자 제거 (Windows/Mac 공통 금지문자 + 공백 정리) */
+function sanitizeFileNamePart(s) {
+  return (s || '').replace(/[\\/:*?"<>|]/g, '').trim();
+}
+
 /* 계약내용 확인서(#doc-card)만 이미지로 캡처해 다운로드 - 버튼/입력창은 포함되지 않음 */
 window.saveAsImage = async function() {
   const node = document.getElementById('doc-card');
@@ -1675,8 +1698,9 @@ window.saveAsImage = async function() {
   try {
     const canvas = await html2canvas(node, { backgroundColor: '#ffffff', scale: 2, useCORS: true });
     const link = document.createElement('a');
+    const namePart = sanitizeFileNamePart(agency.name) || '부동산';
     const dateForFile = (state.sendDate || '').replace(/-/g, '');
-    link.download = `계약내용확인서_${dateForFile || 'image'}.png`;
+    link.download = `${namePart}_계약내용확인서_${dateForFile || 'image'}.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
   } catch (e) {
