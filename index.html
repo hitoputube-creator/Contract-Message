@@ -587,11 +587,20 @@ function getComplexLabel() {
   return c ? c.label : '';
 }
 
+/* 동/호수 등 단위 접미사를 중복 없이 붙임 (예: "101" -> "101동", "101동" -> "101동" 그대로) */
+function appendUnit(raw, unit) {
+  const v = (raw || '').trim();
+  if (!v) return '';
+  return v.endsWith(unit) ? v : `${v}${unit}`;
+}
+
 /* 매물 표시 텍스트 (기존단지선택/직접입력 공통 진입점) */
 function getPropertyDisplayText() {
   const bldgName = state.buildingName ? ` ${state.buildingName}` : '';
-  const bldgDong = state.buildingDong ? ` ${state.buildingDong}동` : '';
-  const bldgHo   = state.buildingHo   ? ` ${state.buildingHo}호`   : '';
+  const dongText = appendUnit(state.buildingDong, '동');
+  const hoText = appendUnit(state.buildingHo, '호');
+  const bldgDong = dongText ? ` ${dongText}` : '';
+  const bldgHo = hoText ? ` ${hoText}` : '';
   const suffix = `${bldgName}${bldgDong}${bldgHo}`;
   const label = state.propertyMode === 'custom'
     ? (state.customPropertyType || '')
@@ -757,7 +766,7 @@ function validateStep2() {
     errors.property = '단지를 선택해 주세요.';
   }
 
-  if (!state.buildingDong.trim()) errors.buildingDong = '동을 입력해 주세요.';
+  if (!isOft() && !state.buildingDong.trim()) errors.buildingDong = '동을 입력해 주세요.';
   if (!state.buildingHo.trim()) errors.buildingHo = '호수를 입력해 주세요.';
   if (!state.contractType) errors.contractType = '계약 유형을 선택해 주세요.';
   if (!parseNum(state.deposit)) errors.deposit = '보증금을 입력해 주세요.';
@@ -898,7 +907,8 @@ function renderIndicator() {
 
 /* --- STEP 1 --- */
 function renderStep1() {
-  const customValid = !!(state.customPropertyType && state.buildingName.trim() && state.buildingDong.trim() && state.buildingHo.trim());
+  const dongOk = isOft() || state.buildingDong.trim();
+  const customValid = !!(state.customPropertyType && state.buildingName.trim() && dongOk && state.buildingHo.trim());
   const nextDisabled = state.propertyMode === 'custom' ? !customValid : !state.complex;
 
   document.getElementById('step-1').innerHTML = `
@@ -950,7 +960,7 @@ function renderStep1() {
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
         <div>
-          <label class="label">동</label>
+          <label class="label">동${isOft() ? ' <span style="color:#4d4635;font-size:10px;">(선택)</span>' : ''}</label>
           <input class="field" type="text" placeholder="예: 101"
             value="${state.buildingDong}" oninput="onInput('buildingDong',this.value)" />
         </div>
@@ -1004,7 +1014,7 @@ function renderStep2() {
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
         <div>
-          <label class="label">동</label>
+          <label class="label">동${isOft() ? ' <span style="color:#4d4635;font-size:10px;">(선택)</span>' : ''}</label>
           <input class="field" id="fld-buildingDong" type="text" tabindex="2" placeholder="예: 101"
             value="${state.buildingDong}" oninput="onInput('buildingDong',this.value)"
             style="${errBorder('buildingDong')}" />
@@ -1362,7 +1372,8 @@ window.onInput = function(key, value) {
   updatePreview();
   // 매물 직접입력(동/호수/건물명) 변경 시 step1 다음 버튼 활성화 조건만 갱신 (전체 재렌더 없이 - 포커스 유지)
   if (state.step === 1 && ['buildingName','buildingDong','buildingHo'].includes(key)) {
-    const customValid = !!(state.customPropertyType && state.buildingName.trim() && state.buildingDong.trim() && state.buildingHo.trim());
+    const dongOk = isOft() || state.buildingDong.trim();
+    const customValid = !!(state.customPropertyType && state.buildingName.trim() && dongOk && state.buildingHo.trim());
     const nextDisabled = state.propertyMode === 'custom' ? !customValid : !state.complex;
     const btn = document.querySelector('#step-1 .btn-gold');
     if (btn) {
