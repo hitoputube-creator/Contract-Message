@@ -496,6 +496,7 @@ const state = {
   contractPeriod: '24',
   customPeriod: '',
   contractMoney: '',
+  contractMoneyManuallyEdited: false,
   todayDeposit: '',
   sendDate: getTodayKST(),
   contractSignDate: '',
@@ -659,6 +660,13 @@ function formatWon(raw) {
 function parseNum(s) {
   if (!s) return 0;
   return parseInt(String(s).replace(/,/g, '')) || 0;
+}
+
+/* 보증금의 10%를 정수 금액으로 계산 (전체계약금 자동계산용) */
+function calcAutoContractMoney(depositRaw) {
+  const n = parseNum(depositRaw);
+  if (!n) return '';
+  return String(Math.round(n * 0.1));
 }
 
 /* 날짜 포맷 */
@@ -1265,6 +1273,10 @@ function renderStep2() {
             value="${state.contractMoney}" oninput="onInput('contractMoney',this.value)"
             onblur="autoComma('contractMoney',this)" style="${errBorder('contractMoney')}" />
           <div style="font-size:12px;color:#d4af37;margin-top:5px;min-height:18px;">${formatMoney(state.contractMoney)}</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+            <span id="contractMoney-status" style="font-size:11px;color:#99907c;">${state.contractMoneyManuallyEdited ? '직접 수정됨' : '보증금의 10% 자동계산'}</span>
+            <button type="button" onclick="recalcContractMoney()" style="background:transparent;border:none;color:#d4af37;font-size:11px;font-weight:600;cursor:pointer;text-decoration:underline;padding:2px 0;white-space:nowrap;">10%로 다시 계산</button>
+          </div>
           ${errBox('contractMoney')}
         </div>
         <div>
@@ -1614,6 +1626,16 @@ window.onRadio = function(name, value) {
 
 window.onInput = function(key, value) {
   state[key] = value;
+
+  // 전체계약금을 사용자가 직접 입력하면 '직접 수정됨' 상태로 전환 (이후 보증금 변경 시 덮어쓰지 않음)
+  if (key === 'contractMoney') {
+    state.contractMoneyManuallyEdited = true;
+  }
+  // 보증금 변경 시, 전체계약금이 아직 자동값(직접 수정되지 않음) 상태라면 10%로 자동 재계산
+  if (key === 'deposit' && !state.contractMoneyManuallyEdited) {
+    state.contractMoney = calcAutoContractMoney(value);
+  }
+
   save();
   // live preview for balance
   if (['contractMoney','todayDeposit','deposit','monthlyRent'].includes(key) && state.step === 2) {
@@ -1624,6 +1646,19 @@ window.onInput = function(key, value) {
       if (preview && preview.style.color === 'rgb(212, 175, 55)') {
         preview.textContent = formatMoney(value.replace(/,/g, ''));
       }
+    }
+    // 전체계약금 자동 재계산 결과를 입력칸/미리보기에 즉시 반영 (보증금 입력 중 포커스는 유지)
+    if (key === 'deposit' && !state.contractMoneyManuallyEdited) {
+      const cmInput = document.getElementById('fld-contractMoney');
+      if (cmInput) {
+        cmInput.value = state.contractMoney ? parseNum(state.contractMoney).toLocaleString('ko-KR') : '';
+        const cmPreview = cmInput.nextElementSibling;
+        if (cmPreview) cmPreview.textContent = formatMoney(state.contractMoney);
+      }
+    }
+    if (key === 'contractMoney') {
+      const cmStatus = document.getElementById('contractMoney-status');
+      if (cmStatus) cmStatus.textContent = '직접 수정됨';
     }
     // update balance
     const { balance } = calcBalance();
@@ -1655,6 +1690,15 @@ window.autoComma = function(key, el) {
     save();
     renderStep2();
   }
+  updatePreview();
+};
+
+/* 전체계약금을 보증금의 10%로 다시 계산 (직접수정 상태 해제) */
+window.recalcContractMoney = function() {
+  state.contractMoneyManuallyEdited = false;
+  state.contractMoney = calcAutoContractMoney(state.deposit);
+  save();
+  renderStep2();
   updatePreview();
 };
 
@@ -1769,6 +1813,7 @@ window.resetAll = function() {
     contractPeriod: '24',
     customPeriod: '',
     contractMoney: '',
+    contractMoneyManuallyEdited: false,
     todayDeposit: '',
     sendDate: getTodayKST(),
     contractSignDate: '',
