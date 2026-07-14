@@ -13,6 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet" />
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script>
     tailwind.config = {
       theme: {
@@ -200,6 +201,102 @@
     }
     .bubble:focus { border-color: #d4af37; }
 
+    /* 계약내용 확인서 (문서형 뷰) - 흰 배경 문서 스타일, 다크 테마와 별도 */
+    .doc-card {
+      background: #ffffff;
+      color: #1a2233;
+      border-radius: 6px;
+      padding: 28px 22px;
+    }
+    .doc-title {
+      font-size: 19px;
+      font-weight: 800;
+      color: #0b1a3a;
+      text-align: center;
+      letter-spacing: .02em;
+    }
+    .doc-subtitle {
+      font-size: 12px;
+      color: #6b7280;
+      text-align: center;
+      margin-top: 4px;
+    }
+    .doc-meta {
+      font-size: 11px;
+      color: #9ca3af;
+      text-align: center;
+      margin-top: 8px;
+      margin-bottom: 22px;
+    }
+    .doc-section {
+      margin-bottom: 22px;
+    }
+    .doc-section:last-child { margin-bottom: 0; }
+    .doc-section-title {
+      font-size: 13px;
+      font-weight: 800;
+      color: #0b1a3a;
+      letter-spacing: .03em;
+      border-bottom: 2px solid #0b1a3a;
+      padding-bottom: 6px;
+      margin-bottom: 10px;
+    }
+    .doc-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 7px 0;
+      border-bottom: 1px solid #e5e7eb;
+      font-size: 13px;
+    }
+    .doc-row:last-child { border-bottom: none; }
+    .doc-label {
+      color: #6b7280;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+    .doc-value {
+      color: #1a2233;
+      font-weight: 600;
+      text-align: right;
+      word-break: break-word;
+      flex: 1;
+      min-width: 0;
+    }
+    .doc-value-money {
+      color: #92610a;
+      font-weight: 800;
+      background: #fff7e0;
+      padding: 2px 10px;
+      border-radius: 3px;
+      display: inline-block;
+    }
+    .doc-value-strong {
+      color: #0b1a3a;
+      font-weight: 800;
+    }
+    .doc-clause-box {
+      background: #f8f9fb;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      padding: 14px 16px;
+    }
+    .doc-clause-list {
+      margin: 0;
+      padding-left: 18px;
+    }
+    .doc-clause-list li {
+      font-size: 12.5px;
+      color: #333333;
+      line-height: 1.75;
+      word-break: break-word;
+    }
+    .doc-signature {
+      border-top: 2px solid #0b1a3a;
+      padding-top: 14px;
+    }
+
     /* radio pill */
     .radio-pill { display: flex; gap: 0; }
     .radio-pill label {
@@ -321,14 +418,26 @@
 
 <!-- 설정 모달 -->
 <div id="settings-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;background:rgba(0,0,0,.8);z-index:9999;align-items:center;justify-content:center;padding:24px;">
-  <div style="background:#181f34;border:1px solid #d4af37;border-radius:6px;padding:28px;width:100%;max-width:420px;position:relative;">
+  <div style="background:#181f34;border:1px solid #d4af37;border-radius:6px;padding:28px;width:100%;max-width:420px;max-height:90vh;overflow-y:auto;position:relative;">
     <div style="font-size:16px;font-weight:700;color:#d4af37;margin-bottom:20px;">⚙ 부동산 정보 설정</div>
     <div style="margin-bottom:14px;">
-      <label class="label">부동산 이름</label>
+      <label class="label">중개사무소 상호</label>
       <input class="field" id="set-name" type="text" placeholder="예: 하이탑부동산" />
     </div>
+    <div style="margin-bottom:14px;">
+      <label class="label">대표 공인중개사 성명</label>
+      <input class="field" id="set-repname" type="text" placeholder="예: 주현희" />
+    </div>
+    <div style="margin-bottom:14px;">
+      <label class="label">중개사무소 등록번호</label>
+      <input class="field" id="set-license" type="text" placeholder="예: 12345-2024-00001" />
+    </div>
+    <div style="margin-bottom:14px;">
+      <label class="label">사무소 주소</label>
+      <input class="field" id="set-address" type="text" placeholder="예: 경기도 파주시 야당동 ..." />
+    </div>
     <div style="margin-bottom:24px;">
-      <label class="label">전화번호</label>
+      <label class="label">대표전화</label>
       <input class="field" id="set-phone" type="tel" placeholder="예: 031-949-8969" />
     </div>
     <div style="display:flex;gap:10px;">
@@ -444,7 +553,13 @@ load();
 let showErrors = false;
 
 /* ── 부동산 정보 (별도 저장, 초기화해도 유지) ── */
-const agency = { name: '하이탑부동산', phone: '031-949-8969' };
+const agency = {
+  name: '하이탑부동산',
+  repName: '주현희',
+  licenseNumber: '',
+  address: '',
+  phone: '031-949-8969',
+};
 function loadAgency() {
   const a = localStorage.getItem('haitop_agency');
   if (a) Object.assign(agency, JSON.parse(a));
@@ -535,6 +650,12 @@ function fmtNum(raw) {
   return n.toLocaleString('ko-KR');
 }
 
+/* 확인서(문서형 뷰)용 금액 표기: "20,000,000원" */
+function formatWon(raw) {
+  const n = parseNum(raw);
+  return n > 0 ? `${n.toLocaleString('ko-KR')}원` : '';
+}
+
 function parseNum(s) {
   if (!s) return 0;
   return parseInt(String(s).replace(/,/g, '')) || 0;
@@ -594,6 +715,13 @@ function appendUnit(raw, unit) {
   return v.endsWith(unit) ? v : `${v}${unit}`;
 }
 
+/* 동·호수만 조합 (예: "101동 1203호", "1203호") - 동/호수 모두 없으면 빈 문자열 */
+function getDongHoText() {
+  const dongText = appendUnit(state.buildingDong, '동');
+  const hoText = appendUnit(state.buildingHo, '호');
+  return [dongText, hoText].filter(Boolean).join(' ');
+}
+
 /* 매물 표시 텍스트 (기존단지선택/직접입력 공통 진입점) */
 function getPropertyDisplayText() {
   const bldgName = state.buildingName ? ` ${state.buildingName}` : '';
@@ -606,6 +734,34 @@ function getPropertyDisplayText() {
     ? (state.customPropertyType || '')
     : getComplexLabel();
   return `${label}${suffix}`;
+}
+
+/* 체크박스 기반 자동 특약 문장 목록 (문자 생성 / 확인서 뷰 공통) - 자유입력 특약은 별도 처리 */
+function getAutoClauseList() {
+  const isBizOft = isBusinessOft();
+  const list = [];
+  if (state.clausePet) list.push('애완동물 사육 및 실내 흡연은 금지합니다.');
+  if (state.clauseCondition) list.push('본 계약은 현 시설 상태를 확인 후 계약하는 것으로 합니다.');
+  if (isBizOft) {
+    list.push('업무용 오피스텔로 전입신고가 불가합니다.');
+    list.push('세금계산서 발급이 가능합니다.');
+  }
+  if (state.clauseAsIs) list.push('본 물건은 현재 시설 상태 그대로 계약이 진행됩니다.');
+  if (state.clausePetBan) list.push('반려동물 사육을 금지합니다.');
+  if (state.clauseSmokeBan) list.push('실내 흡연을 금지합니다.');
+  if (state.clauseRestore) list.push('임차인은 계약 종료 시 원상복구 후 반환합니다.');
+  if (state.clauseUtilSeparate) list.push('관리비 및 공과금은 별도이며 임차인이 부담합니다.');
+  if (state.clauseLoanCoop) list.push('임차인의 전세자금대출 진행에 협조합니다.');
+  if (state.clauseNoRightsChange) list.push('임대인은 잔금일까지 목적물에 권리변동(근저당 설정 등)이 없도록 합니다.');
+  if (state.clauseBrokerFeeOnBreach) list.push('본 계약 체결 후 임대인 또는 임차인의 변심이나 귀책사유로 계약이 해제·해지 또는 파기되는 경우에도 개업공인중개사의 중개보수 청구권은 발생하며, 귀책당사자는 관계 법령 및 중개보수 약정에 따른 중개보수 전액을 지급한다.');
+  if (isOft()) {
+    if (state.clauseOftVatSeparate) list.push('업무용 오피스텔로 부가세는 별도로 안내드립니다.');
+    if (state.clauseOftResidentCheck) list.push('주거용 전입신고 가능 여부는 사전에 확인해 주시기 바랍니다.');
+    if (state.clauseOftNoResident) list.push('본 물건은 전입신고가 불가능한 조건입니다.');
+    if (state.clauseOftBizReg) list.push('사업자등록이 가능한 물건입니다.');
+    if (state.clauseOftMgmtFeeCheck) list.push('관리비 부과 기준은 사전에 확인해 주시기 바랍니다.');
+  }
+  return list;
 }
 
 /* =========================================================
@@ -687,27 +843,7 @@ function generateText() {
   lines.push(``);
   lines.push(`■ 특약 사항`);
 
-  if (state.clausePet) lines.push(`· 애완동물 사육 및 실내 흡연은 금지합니다.`);
-  if (state.clauseCondition) lines.push(`· 본 계약은 현 시설 상태를 확인 후 계약하는 것으로 합니다.`);
-  if (isBizOft) {
-    lines.push(`· 업무용 오피스텔로 전입신고가 불가합니다.`);
-    lines.push(`· 세금계산서 발급이 가능합니다.`);
-  }
-  if (state.clauseAsIs) lines.push(`· 본 물건은 현재 시설 상태 그대로 계약이 진행됩니다.`);
-  if (state.clausePetBan) lines.push(`· 반려동물 사육을 금지합니다.`);
-  if (state.clauseSmokeBan) lines.push(`· 실내 흡연을 금지합니다.`);
-  if (state.clauseRestore) lines.push(`· 임차인은 계약 종료 시 원상복구 후 반환합니다.`);
-  if (state.clauseUtilSeparate) lines.push(`· 관리비 및 공과금은 별도이며 임차인이 부담합니다.`);
-  if (state.clauseLoanCoop) lines.push(`· 임차인의 전세자금대출 진행에 협조합니다.`);
-  if (state.clauseNoRightsChange) lines.push(`· 임대인은 잔금일까지 목적물에 권리변동(근저당 설정 등)이 없도록 합니다.`);
-  if (state.clauseBrokerFeeOnBreach) lines.push(`· 본 계약 체결 후 임대인 또는 임차인의 변심이나 귀책사유로 계약이 해제·해지 또는 파기되는 경우에도 개업공인중개사의 중개보수 청구권은 발생하며, 귀책당사자는 관계 법령 및 중개보수 약정에 따른 중개보수 전액을 지급한다.`);
-  if (isOft()) {
-    if (state.clauseOftVatSeparate) lines.push(`· 업무용 오피스텔로 부가세는 별도로 안내드립니다.`);
-    if (state.clauseOftResidentCheck) lines.push(`· 주거용 전입신고 가능 여부는 사전에 확인해 주시기 바랍니다.`);
-    if (state.clauseOftNoResident) lines.push(`· 본 물건은 전입신고가 불가능한 조건입니다.`);
-    if (state.clauseOftBizReg) lines.push(`· 사업자등록이 가능한 물건입니다.`);
-    if (state.clauseOftMgmtFeeCheck) lines.push(`· 관리비 부과 기준은 사전에 확인해 주시기 바랍니다.`);
-  }
+  getAutoClauseList().forEach(c => lines.push(`· ${c}`));
   if (state.clauseFreeText && state.clauseFreeText.trim()) {
     lines.push(`· 기타 특약사항`);
     state.clauseFreeText.split('\n').forEach(line => lines.push(`  ${line}`));
@@ -1262,13 +1398,122 @@ function renderStep3() {
   updatePreview();
 }
 
+/* 확인서(문서형 뷰) 한 줄 - 값이 없으면 렌더링하지 않음 */
+function docRow(label, value, emphasis) {
+  if (!value) return '';
+  let valueClass = 'doc-value';
+  if (emphasis === 'money') valueClass += ' doc-value-money';
+  if (emphasis === 'strong') valueClass += ' doc-value-strong';
+  return `<div class="doc-row"><div class="doc-label">${label}</div><div class="${valueClass}">${value}</div></div>`;
+}
+
+/* 부동산 계약내용 확인서 (문서형 뷰) HTML 생성 - 결과 화면과 이미지 저장이 공통으로 사용 */
+function buildDocumentCardHTML() {
+  const propertyType = isOft() ? '오피스텔' : '아파트';
+  const dongHo = getDongHoText();
+  const addressLine = state.customAddress || getPropertyDisplayText();
+
+  const todayDeposit = parseNum(state.todayDeposit);
+  const contractMoneyLine = formatWon(state.contractMoney) +
+    (todayDeposit > 0 ? ` <span style="font-weight:600;color:#6b7280;">(금일 ${formatWon(state.todayDeposit)} 지급)</span>` : '');
+  const { balance } = calcBalance();
+  const balanceLine = balance > 0 ? formatWon(String(balance)) : '';
+
+  let accountLine = '';
+  if (state.accountLater) {
+    accountLine = '추후 안내';
+  } else if (state.landlordBank || state.landlordAccount || state.landlordName) {
+    accountLine = [state.landlordBank, state.landlordAccount, state.landlordName].filter(Boolean).join(' / ');
+  }
+
+  const propertyRows = [
+    docRow('부동산 구분', propertyType),
+    docRow('단지명/건물명', state.buildingName),
+    docRow('동·호수', dongHo),
+    docRow('주소/표시명', addressLine),
+  ].join('');
+
+  const contractRows = [
+    docRow('계약 유형', state.contractType),
+    docRow('보증금', formatWon(state.deposit), 'money'),
+    state.contractType === '월세' ? docRow('월세', formatWon(state.monthlyRent), 'money') : '',
+    docRow('계약금', parseNum(state.contractMoney) > 0 ? contractMoneyLine : '', 'money'),
+    docRow('잔금', balanceLine, 'money'),
+    docRow('계약일', state.contractSignDate ? fmtDate(state.contractSignDate) : ''),
+    docRow('잔금일/입주일', state.moveInDate ? fmtDate(state.moveInDate) : ''),
+    docRow('임대인 계좌정보', accountLine),
+  ].join('');
+
+  const clauseItems = getAutoClauseList();
+  const freeText = state.clauseFreeText && state.clauseFreeText.trim() ? state.clauseFreeText.trim() : '';
+  const hasClauses = clauseItems.length > 0 || !!freeText;
+  const clauseBoxHtml = hasClauses ? `
+    <div class="doc-clause-box">
+      ${clauseItems.length ? `<ol class="doc-clause-list">${clauseItems.map(c => `<li>${c}</li>`).join('')}</ol>` : ''}
+      ${freeText ? `<div style="margin-top:${clauseItems.length ? '10px' : '0'};font-size:12.5px;color:#333333;white-space:pre-wrap;line-height:1.75;word-break:break-word;">${freeText}</div>` : ''}
+    </div>
+  ` : `<div style="font-size:12.5px;color:#9ca3af;">등록된 특약사항이 없습니다.</div>`;
+
+  const agencyRows = [
+    docRow('중개사무소 상호', agency.name, 'strong'),
+    docRow('대표 공인중개사', agency.repName),
+    docRow('중개사무소 등록번호', agency.licenseNumber),
+    docRow('사무소 주소', agency.address),
+    docRow('대표전화', agency.phone, 'strong'),
+  ].join('');
+
+  return `
+    <div id="doc-card" class="doc-card">
+      <div class="doc-title">부동산 계약내용 확인서</div>
+      <div class="doc-subtitle">아래 계약조건을 확인해 주시기 바랍니다.</div>
+      <div class="doc-meta">생성일자: ${fmtDate(state.sendDate)}</div>
+
+      <div class="doc-section">
+        <div class="doc-section-title">1. 부동산 표시</div>
+        ${propertyRows}
+      </div>
+
+      <div class="doc-section">
+        <div class="doc-section-title">2. 계약 조건</div>
+        ${contractRows}
+      </div>
+
+      <div class="doc-section">
+        <div class="doc-section-title">3. 특약 사항</div>
+        ${clauseBoxHtml}
+      </div>
+
+      <div class="doc-section">
+        <div class="doc-section-title">4. 중개사무소 정보</div>
+        <div class="doc-signature">${agencyRows}</div>
+      </div>
+    </div>
+  `;
+}
+
 /* --- STEP 4 --- */
 function renderStep4() {
   const txt = generateText();
   document.getElementById('step-4').innerHTML = `
     <div style="margin-bottom:24px;">
-      <div style="font-size:22px;font-weight:700;color:#dbe1fe;margin-bottom:6px;">문자 미리보기</div>
-      <div style="font-size:13px;color:#d0c5af;">내용을 직접 수정한 후 복사할 수 있습니다.</div>
+      <div style="font-size:22px;font-weight:700;color:#dbe1fe;margin-bottom:6px;">계약내용 확인서</div>
+      <div style="font-size:13px;color:#d0c5af;">아래 확인서를 이미지로 저장하거나, 문자 원문을 복사할 수 있습니다.</div>
+    </div>
+
+    <!-- 문서형 확인서 -->
+    <div style="border-radius:8px;overflow:hidden;margin-bottom:16px;">
+      ${buildDocumentCardHTML()}
+    </div>
+
+    <div style="display:flex;justify-content:center;margin-bottom:28px;">
+      <button class="btn-gold" onclick="saveAsImage()">🖼 이미지로 저장</button>
+    </div>
+
+    <hr class="divider">
+
+    <div style="margin:20px 0 16px;">
+      <div style="font-size:14px;font-weight:700;color:#dbe1fe;margin-bottom:4px;">✏ 문자 원문 (수정 가능)</div>
+      <div style="font-size:12px;color:#d0c5af;">메신저로 보낼 문구입니다. 필요하면 직접 수정한 후 복사하세요.</div>
     </div>
 
     <!-- Messenger UI -->
@@ -1420,6 +1665,25 @@ window.copyText = function() {
   });
 };
 
+/* 계약내용 확인서(#doc-card)만 이미지로 캡처해 다운로드 - 버튼/입력창은 포함되지 않음 */
+window.saveAsImage = async function() {
+  const node = document.getElementById('doc-card');
+  if (!node || typeof html2canvas === 'undefined') {
+    alert('이미지 저장 기능을 사용할 수 없습니다. 인터넷 연결을 확인한 뒤 다시 시도해 주세요.');
+    return;
+  }
+  try {
+    const canvas = await html2canvas(node, { backgroundColor: '#ffffff', scale: 2, useCORS: true });
+    const link = document.createElement('a');
+    const dateForFile = (state.sendDate || '').replace(/-/g, '');
+    link.download = `계약내용확인서_${dateForFile || 'image'}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  } catch (e) {
+    alert('이미지 저장 중 오류가 발생했습니다. 다시 시도해 주세요.');
+  }
+};
+
 /* 헤더 텍스트 갱신 */
 function renderHeader() {
   const nm = document.getElementById('hd-name');
@@ -1434,6 +1698,9 @@ function renderHeader() {
 /* 설정 모달 */
 window.openSettings = function() {
   document.getElementById('set-name').value = agency.name;
+  document.getElementById('set-repname').value = agency.repName;
+  document.getElementById('set-license').value = agency.licenseNumber;
+  document.getElementById('set-address').value = agency.address;
   document.getElementById('set-phone').value = agency.phone;
   const m = document.getElementById('settings-modal');
   m.style.display = 'flex';
@@ -1445,9 +1712,15 @@ window.closeSettings = function() {
 };
 window.saveAgencySettings = function() {
   const n = document.getElementById('set-name').value.trim();
+  const rn = document.getElementById('set-repname').value.trim();
+  const lic = document.getElementById('set-license').value.trim();
+  const addr = document.getElementById('set-address').value.trim();
   const p = document.getElementById('set-phone').value.trim();
   if (!n) { alert('부동산 이름을 입력해 주세요.'); return; }
   agency.name = n;
+  agency.repName = rn;
+  agency.licenseNumber = lic;
+  agency.address = addr;
   agency.phone = p;
   saveAgency();
   renderHeader();
