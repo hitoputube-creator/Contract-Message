@@ -420,6 +420,7 @@ const state = {
   clauseUtilSeparate: false,
   clauseLoanCoop: false,
   clauseNoRightsChange: false,
+  clauseBrokerFeeOnBreach: true,
 
   /* ── 오피스텔 추가 특약 (신규) ── */
   clauseOftVatSeparate: false,
@@ -690,6 +691,7 @@ function generateText() {
   if (state.clauseUtilSeparate) lines.push(`· 관리비 및 공과금은 별도이며 임차인이 부담합니다.`);
   if (state.clauseLoanCoop) lines.push(`· 임차인의 전세자금대출 진행에 협조합니다.`);
   if (state.clauseNoRightsChange) lines.push(`· 임대인은 잔금일까지 목적물에 권리변동(근저당 설정 등)이 없도록 합니다.`);
+  if (state.clauseBrokerFeeOnBreach) lines.push(`· 본 계약 체결 후 임대인 또는 임차인의 변심이나 귀책사유로 계약이 해제·해지 또는 파기되는 경우에도 개업공인중개사의 중개보수 청구권은 발생하며, 귀책당사자는 관계 법령 및 중개보수 약정에 따른 중개보수 전액을 지급한다.`);
   if (isOft()) {
     if (state.clauseOftVatSeparate) lines.push(`· 업무용 오피스텔로 부가세는 별도로 안내드립니다.`);
     if (state.clauseOftResidentCheck) lines.push(`· 주거용 전입신고 가능 여부는 사전에 확인해 주시기 바랍니다.`);
@@ -1220,6 +1222,7 @@ function renderStep3() {
         ${Checkbox('clauseUtilSeparate', state.clauseUtilSeparate, '관리비 및 공과금 별도')}
         ${Checkbox('clauseLoanCoop', state.clauseLoanCoop, '전세대출 협조')}
         ${Checkbox('clauseNoRightsChange', state.clauseNoRightsChange, '임대인은 잔금일까지 권리변동 금지')}
+        ${Checkbox('clauseBrokerFeeOnBreach', state.clauseBrokerFeeOnBreach, '계약 파기 시 중개보수 지급')}
       </div>
       ${isOft() ? `
       <hr class="divider" style="margin:18px 0 14px;">
@@ -1483,6 +1486,7 @@ window.resetAll = function() {
     clauseUtilSeparate: false,
     clauseLoanCoop: false,
     clauseNoRightsChange: false,
+    clauseBrokerFeeOnBreach: true,
     clauseOftVatSeparate: false,
     clauseOftResidentCheck: false,
     clauseOftNoResident: false,
